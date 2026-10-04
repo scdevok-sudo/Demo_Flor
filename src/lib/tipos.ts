@@ -176,3 +176,36 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     seguimiento: [],
   }
 }
+
+/** Un turno ocupado/cancelado/no-asistió. Un horario sin turno cargado está libre. */
+export type EstadoTurno = "ocupado" | "cancelado" | "no-asistio"
+
+export interface Turno {
+  id: string
+  pacienteId: string
+  sede: Sede
+  /** AAAA-MM-DD */
+  fecha: string
+  /** HH:MM */
+  hora: string
+  estado: EstadoTurno
+}
+
+/** Horarios de atención. Se edita desde «Configurar horarios», no está fijo en el código. */
+export interface ConfigAgenda {
+  /** 0 = domingo … 6 = sábado (igual que Date.getDay) */
+  dias: number[]
+  desde: string
+  hasta: string
+  /** minutos por turno */
+  duracion: number
+}
+
+export const DURACIONES = [15, 20, 30, 45, 60]
+
+export const CONFIG_AGENDA_INICIAL: ConfigAgenda = {
+  dias: [1, 3, 4],
+  desde: "14:00",
+  hasta: "20:00",
+  duracion: 30,
+}

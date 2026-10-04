@@ -1,7 +1,13 @@
-import { createContext, useContext, useMemo, useReducer, type ReactNode } from "react"
+import { createContext, useContext, useMemo, useReducer, useState, type ReactNode } from "react"
 
-import { PACIENTES_DEMO } from "@/lib/datos"
-import { pacienteVacio, type Paciente } from "@/lib/tipos"
+import { PACIENTES_DEMO, turnosDemo } from "@/lib/datos"
+import {
+  CONFIG_AGENDA_INICIAL,
+  pacienteVacio,
+  type ConfigAgenda,
+  type Paciente,
+  type Turno,
+} from "@/lib/tipos"
 import { nuevoId } from "@/lib/util"
 
 /**
@@ -25,12 +31,20 @@ interface Fichero {
   pacientes: Paciente[]
   agregarPaciente: (datos: Partial<Paciente>) => Paciente
   actualizarPaciente: (id: string, cambios: Partial<Paciente>) => void
+  turnos: Turno[]
+  agregarTurno: (datos: Omit<Turno, "id">) => void
+  actualizarTurno: (id: string, cambios: Partial<Turno>) => void
+  eliminarTurno: (id: string) => void
+  configAgenda: ConfigAgenda
+  setConfigAgenda: (config: ConfigAgenda) => void
 }
 
 const FicheroContext = createContext<Fichero | null>(null)
 
 export function FicheroProvider({ children }: { children: ReactNode }) {
   const [pacientes, dispatch] = useReducer(reducer, PACIENTES_DEMO)
+  const [turnos, setTurnos] = useState<Turno[]>(turnosDemo)
+  const [configAgenda, setConfigAgenda] = useState<ConfigAgenda>(CONFIG_AGENDA_INICIAL)
 
   const valor = useMemo<Fichero>(
     () => ({
@@ -41,8 +55,15 @@ export function FicheroProvider({ children }: { children: ReactNode }) {
         return paciente
       },
       actualizarPaciente: (id, cambios) => dispatch({ tipo: "actualizar", id, cambios }),
+      turnos,
+      agregarTurno: (datos) => setTurnos((ts) => [...ts, { ...datos, id: nuevoId("tur") }]),
+      actualizarTurno: (id, cambios) =>
+        setTurnos((ts) => ts.map((t) => (t.id === id ? { ...t, ...cambios } : t))),
+      eliminarTurno: (id) => setTurnos((ts) => ts.filter((t) => t.id !== id)),
+      configAgenda,
+      setConfigAgenda,
     }),
-    [pacientes]
+    [pacientes, turnos, configAgenda]
   )
 
   return <FicheroContext.Provider value={valor}>{children}</FicheroContext.Provider>

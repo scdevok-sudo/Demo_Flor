@@ -1,4 +1,4 @@
-import { LogOut, UserPlus, Users } from "lucide-react"
+import { CalendarDays, LogOut, UserPlus, Users } from "lucide-react"
 import { NavLink, Outlet, useNavigate } from "react-router-dom"
 import { cn } from "cn"
 
@@ -6,6 +6,7 @@ import { Firma, Isotipo } from "@/components/marca"
 
 const NAV = [
   { a: "/pacientes", etiqueta: "Pacientes", icono: Users, exacto: true },
+  { a: "/agenda", etiqueta: "Agenda", icono: CalendarDays, exacto: true },
   { a: "/pacientes/nuevo", etiqueta: "Nuevo paciente", icono: UserPlus, exacto: false },
 ]
 

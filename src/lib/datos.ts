@@ -7,8 +7,9 @@ import {
   type Cuota,
   type FotoSlot,
   type Paciente,
+  type Turno,
 } from "@/lib/tipos"
-import { fotoDemo } from "@/lib/util"
+import { aISO, fotoDemo, lunesDe, sumarDias } from "@/lib/util"
 
 /** Completa los primeros `cuantos` slots de la serie con fotos de relleno. */
 function serie(semilla: string, cuantos = SLOTS_SERIE.length): FotoSlot[] {
@@ -399,3 +400,42 @@ export const PACIENTES_DEMO: Paciente[] = [
     seguimiento: [],
   },
 ]
+
+/**
+ * Turnos de ejemplo, relativos a la semana en que se abre la demo para que
+ * la agenda nunca arranque vacía. Lun/Mié/Jue = offsets 0/2/3 desde el lunes.
+ */
+export function turnosDemo(): Turno[] {
+  const lunes = lunesDe(new Date())
+  const t = (
+    sem: number,
+    dia: number,
+    hora: string,
+    pacienteId: string,
+    sede: Turno["sede"],
+    estado: Turno["estado"] = "ocupado"
+  ): Turno => ({
+    id: `tur-${sem}-${dia}-${hora}-${sede}`,
+    pacienteId,
+    sede,
+    fecha: aISO(sumarDias(lunes, sem * 7 + dia)),
+    hora,
+    estado,
+  })
+
+  return [
+    // Semana actual
+    t(0, 0, "14:00", "pac-1", "La Plata"),
+    t(0, 0, "16:00", "pac-2", "Tandil"),
+    t(0, 2, "15:30", "pac-3", "La Plata", "cancelado"),
+    t(0, 2, "14:30", "pac-4", "Tandil", "no-asistio"),
+    t(0, 3, "18:00", "pac-1", "La Plata"),
+    // Semana próxima
+    t(1, 0, "14:30", "pac-1", "La Plata"),
+    t(1, 0, "15:00", "pac-4", "Tandil"),
+    t(1, 2, "15:00", "pac-3", "La Plata"),
+    t(1, 2, "17:30", "pac-3", "La Plata", "cancelado"),
+    t(1, 3, "17:00", "pac-2", "Tandil"),
+    t(1, 3, "18:00", "pac-1", "La Plata"),
+  ]
+}

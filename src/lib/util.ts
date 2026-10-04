@@ -71,3 +71,44 @@ export function formatoDNI(dni: string): string {
   if (!d) return "—"
   return d.replace(/\B(?=(\d{3})+(?!\d))/g, ".")
 }
+
+/* ---------- Fechas locales (para la agenda) ---------- */
+
+export const DIAS_CORTO = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"]
+export const DIAS_LARGO = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"]
+const MESES_CORTO = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"]
+
+/** Date -> AAAA-MM-DD en hora local (toISOString usaría UTC y puede correr el día). */
+export function aISO(d: Date): string {
+  const m = String(d.getMonth() + 1).padStart(2, "0")
+  const dia = String(d.getDate()).padStart(2, "0")
+  return `${d.getFullYear()}-${m}-${dia}`
+}
+
+export function deISO(iso: string): Date {
+  const [a, m, d] = iso.split("-").map(Number)
+  return new Date(a, m - 1, d)
+}
+
+export function sumarDias(d: Date, n: number): Date {
+  const r = new Date(d)
+  r.setDate(r.getDate() + n)
+  return r
+}
+
+/** Lunes de la semana de `d`. */
+export function lunesDe(d: Date): Date {
+  const dif = (d.getDay() + 6) % 7
+  return sumarDias(new Date(d.getFullYear(), d.getMonth(), d.getDate()), -dif)
+}
+
+/** 5 oct */
+export function diaMes(d: Date): string {
+  return `${d.getDate()} ${MESES_CORTO[d.getMonth()]}`
+}
+
+/** 2026-10-05 -> Lun 5 oct */
+export function fechaConDia(iso: string): string {
+  const d = deISO(iso)
+  return `${DIAS_CORTO[d.getDay()]} ${diaMes(d)}`
+}

@@ -2,6 +2,7 @@ import { useState } from "react"
 import {
   ArrowLeft,
   CalendarClock,
+  CalendarDays,
   ClipboardList,
   FileImage,
   Images,
@@ -19,6 +20,7 @@ import { DatosGenerales } from "@/pages/modulos/DatosGenerales"
 import { Diagnostico } from "@/pages/modulos/Diagnostico"
 import { Estudios } from "@/pages/modulos/Estudios"
 import { Fotos } from "@/pages/modulos/Fotos"
+import { ProximosTurnos } from "@/pages/modulos/ProximosTurnos"
 import { Presupuesto } from "@/pages/modulos/Presupuesto"
 import { Seguimiento } from "@/pages/modulos/Seguimiento"
 import { useFichero, usePaciente } from "@/lib/store"
@@ -26,7 +28,7 @@ import { esArmonizacion, type Paciente } from "@/lib/tipos"
 import { formatoDNI, iniciales } from "@/lib/util"
 
 /**
- * Las mismas seis solapas para todas las categorías. Lo que cambia es el
+ * Las mismas solapas para todas las categorías. Lo que cambia es el
  * contenido de algunas: armonización facial usa su galería de antes/después
  * en «Fotos» y la versión corta de «Datos» y «Diagnóstico».
  */
@@ -37,6 +39,7 @@ const SOLAPAS = [
   { id: "diagnostico", etiqueta: "Diagnóstico", icono: Stethoscope },
   { id: "presupuesto", etiqueta: "Presupuesto", icono: Receipt },
   { id: "seguimiento", etiqueta: "Seguimiento", icono: CalendarClock },
+  { id: "turnos", etiqueta: "Próximos turnos", icono: CalendarDays },
 ]
 
 export function FichaPaciente() {
@@ -130,6 +133,10 @@ export function FichaPaciente() {
 
         <TabsContent value="seguimiento" className="pt-5">
           <Seguimiento paciente={paciente} actualizar={actualizar} />
+        </TabsContent>
+
+        <TabsContent value="turnos" className="pt-5">
+          <ProximosTurnos paciente={paciente} />
         </TabsContent>
       </Tabs>
     </div>

@@ -15,9 +15,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table"
+import { coincide } from "@/lib/buscar"
 import { useFichero } from "@/lib/store"
-import { CATEGORIAS, SEDES, esArmonizacion, type Categoria, type Paciente, type Sede } from "@/lib/tipos"
-import { formatoDNI, iniciales, normalizar, soloDigitos } from "@/lib/util"
+import { CATEGORIAS, SEDES, esArmonizacion, type Categoria, type Sede } from "@/lib/tipos"
+import { formatoDNI, iniciales, soloDigitos } from "@/lib/util"
 
 type FiltroSede = Sede | "Todas"
 type FiltroCategoria = Categoria | "Todas"
@@ -32,25 +33,6 @@ const CORTO: Record<FiltroCategoria, string> = {
   Ortodoncia: "Ortodoncia",
   Alineadores: "Alineadores",
   "Armonización facial": "Armonización",
-}
-
-/** El buscador es uno solo: si escribís números busca por DNI, si no, por apellido. */
-function coincide(p: Paciente, busqueda: string): boolean {
-  const q = busqueda.trim()
-  if (!q) return true
-
-  const digitos = soloDigitos(q)
-  if (digitos.length >= 2 && digitos.length >= q.replace(/[\s.]/g, "").length) {
-    return soloDigitos(p.dni).includes(digitos)
-  }
-
-  const texto = normalizar(q)
-  return (
-    normalizar(p.apellido).includes(texto) ||
-    normalizar(p.nombre).includes(texto) ||
-    normalizar(`${p.apellido} ${p.nombre}`).includes(texto) ||
-    normalizar(`${p.nombre} ${p.apellido}`).includes(texto)
-  )
 }
 
 function EstadoBadge({ activo }: { activo: boolean }) {
