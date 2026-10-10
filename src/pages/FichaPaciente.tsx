@@ -119,12 +119,12 @@ export function FichaPaciente() {
           {af ? (
             <AntesDespues paciente={paciente} actualizar={actualizar} />
           ) : (
-            <Fotos paciente={paciente} actualizar={actualizar} />
+            <Fotos key={paciente.id} paciente={paciente} />
           )}
         </TabsContent>
 
         <TabsContent value="estudios" className="pt-5">
-          <Estudios paciente={paciente} actualizar={actualizar} />
+          <Estudios key={paciente.id} paciente={paciente} />
         </TabsContent>
 
         <TabsContent value="diagnostico" className="pt-5">

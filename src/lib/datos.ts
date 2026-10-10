@@ -1,11 +1,8 @@
 import {
   SLOTS_AF,
-  SLOTS_SERIE,
   cuotasVacias,
   serieAFVacia,
-  serieVacia,
   type Cuota,
-  type FotoFechada,
   type FotoSlot,
   type ConfigAgenda,
   type Paciente,
@@ -13,19 +10,6 @@ import {
   type Turno,
 } from "@/lib/tipos"
 import { aISO, fotoDemo, lunesDe, sumarDias } from "@/lib/util"
-
-/** Placeholder de video para la demo: se marca como video, no se reproduce. */
-function videoDemo(id: string, semilla: string, fecha: string, nota: string): FotoFechada {
-  return { id, url: fotoDemo(semilla, 480, 600), fecha, nota, video: true }
-}
-
-/** Completa los primeros `cuantos` slots de la serie con fotos de relleno. */
-function serie(semilla: string, cuantos = SLOTS_SERIE.length): FotoSlot[] {
-  return SLOTS_SERIE.map((s, i) => ({
-    slot: s.id,
-    url: i < cuantos ? fotoDemo(`${semilla}-${s.id}`) : null,
-  }))
-}
 
 /** Las 3 tomas de armonizacion facial, con las primeras `cuantos` cargadas. */
 function serieAF(semilla: string, cuantos: number = SLOTS_AF.length): FotoSlot[] {
@@ -67,51 +51,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       "Mamá: Verónica (3412-556677). Papá: Diego. Juega al fútbol los sábados, conviene no darle turnos temprano ese día. Le da impresión el aspirador.",
     derivadoPor: "Dra. Lucía Bertoni (odontopediatra)",
     activo: true,
-    fotosIniciales: serie("bautista-ini"),
-    fotosIntra: [
-      {
-        id: "fi-b1",
-        url: fotoDemo("bautista-intra-1", 480, 600),
-        fecha: "2026-06-10",
-        nota: "Colocación de placa de expansión",
-      },
-      {
-        id: "fi-b2",
-        url: fotoDemo("bautista-intra-2", 480, 600),
-        fecha: "2026-08-05",
-        nota: "Control de expansión — 2 meses",
-      },
-    ],
-    fotosFinales: serieVacia(),
-    videosIniciales: [videoDemo("vi-b1", "bautista-video-ini", "2026-05-18", "Deglución y respiración")],
-    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    radiografias: [
-      {
-        id: "rx-b1",
-        nombre: "panoramica-inicial.jpg",
-        momento: "Inicial",
-        formato: "imagen",
-        url: fotoDemo("rx-bautista-1", 600, 400),
-      },
-      {
-        id: "rx-b2",
-        nombre: "teleperfil-inicial.jpg",
-        momento: "Inicial",
-        formato: "imagen",
-        url: fotoDemo("rx-bautista-2", 600, 400),
-      },
-    ],
-    estudios: [
-      {
-        id: "es-b1",
-        nombre: "cefalometria-inicial.pdf",
-        momento: "Inicial",
-        formato: "pdf",
-        url: null,
-      },
-    ],
     diagnostico:
       "Clase II esquelética por retrusión mandibular. Mordida cruzada posterior bilateral con compresión del maxilar superior. Hábito de respiración bucal.",
     plan:
@@ -169,23 +110,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       "Trabaja en Buenos Aires y viaja a Tandil un fin de semana al mes: agendar los controles los viernes a la tarde. Se casa en noviembre de 2027 y quiere terminar antes.",
     derivadoPor: "Consulta espontánea (Instagram)",
     activo: true,
-    fotosIniciales: serie("carla-ini"),
-    fotosIntra: [],
-    fotosFinales: serieVacia(),
-    videosIniciales: [],
-    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    radiografias: [
-      {
-        id: "rx-c1",
-        nombre: "panoramica-inicial.jpg",
-        momento: "Inicial",
-        formato: "imagen",
-        url: fotoDemo("rx-carla-1", 600, 400),
-      },
-    ],
-    estudios: [],
     diagnostico:
       "Clase I molar y canina. Apiñamiento anteroinferior severo, con 8 mm de discrepancia. Desvío de línea media inferior de 2 mm a la izquierda. Bruxismo.",
     plan:
@@ -226,48 +152,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       "Trabaja de noche, prefiere turnos antes de las 11. Muy constante con los controles. Le interesa mucho ver el avance en fotos.",
     derivadoPor: "Dr. Ariel Souto (periodoncista)",
     activo: true,
-    fotosIniciales: serie("martin-ini"),
-    fotosIntra: [
-      { id: "fi-m1", url: fotoDemo("martin-intra-1", 480, 600), fecha: "2025-11-12", nota: "Cementado inferior" },
-      { id: "fi-m2", url: fotoDemo("martin-intra-2", 480, 600), fecha: "2026-01-20", nota: "Cambio de arco a 016x022 NiTi" },
-      { id: "fi-m3", url: fotoDemo("martin-intra-3", 480, 600), fecha: "2026-03-17", nota: "Cierre de espacios — 4 meses" },
-      { id: "fi-m4", url: fotoDemo("martin-intra-4", 480, 600), fecha: "2026-05-26", nota: "Control de torque anterosuperior" },
-      { id: "fi-m5", url: fotoDemo("martin-intra-5", 480, 600), fecha: "2026-07-14", nota: "Arco de acero 019x025" },
-      { id: "fi-m6", url: fotoDemo("martin-intra-6", 480, 600), fecha: "2026-09-08", nota: "Detallado final. Se evalúa fecha de retiro." },
-    ],
-    fotosFinales: serie("martin-fin", 6),
-    videosIniciales: [],
-    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    radiografias: [
-      {
-        id: "rx-m1",
-        nombre: "panoramica-inicial.jpg",
-        momento: "Inicial",
-        formato: "imagen",
-        url: fotoDemo("rx-martin-1", 600, 400),
-      },
-      {
-        id: "rx-m2",
-        nombre: "teleperfil-inicial.jpg",
-        momento: "Inicial",
-        formato: "imagen",
-        url: fotoDemo("rx-martin-2", 600, 400),
-      },
-      {
-        id: "rx-m3",
-        nombre: "panoramica-control-12m.jpg",
-        momento: "Intermedio",
-        formato: "imagen",
-        url: fotoDemo("rx-martin-3", 600, 400),
-      },
-    ],
-    estudios: [
-      { id: "es-m1", nombre: "cefalometria-inicial.pdf", momento: "Inicial", formato: "pdf", url: null },
-      { id: "es-m2", nombre: "periodontograma-2024.pdf", momento: "Inicial", formato: "pdf", url: null },
-      { id: "es-m3", nombre: "cefalometria-control.pdf", momento: "Intermedio", formato: "pdf", url: null },
-    ],
     diagnostico:
       "Clase II división 1, subdivisión derecha. Resalte aumentado de 6 mm. Ausencia de la pieza 46 con migración mesial de la 47. Soporte periodontal reducido, estable.",
     plan:
@@ -331,15 +217,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       "Mamá: Sandra (2494-887766). Hermana de Bautista Fernández, vienen juntos a los controles cuando la familia está en Tandil. Toca el violín.",
     derivadoPor: "Derivación familiar",
     activo: true,
-    fotosIniciales: serie("julieta-ini", 6),
-    fotosIntra: [],
-    fotosFinales: serieVacia(),
-    videosIniciales: [],
-    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    radiografias: [],
-    estudios: [],
     diagnostico:
       "Mordida abierta anterior por hábito de interposición lingual. Dentición mixta, segunda fase.",
     plan: "Rejilla lingual fija y terapia miofuncional. Reevaluación a los 8 meses.",
@@ -377,25 +256,8 @@ export const PACIENTES_DEMO: Paciente[] = [
     particularidades: "Terminó el tratamiento en 2025. Queda en control anual de contención.",
     derivadoPor: "Consulta espontánea",
     activo: false,
-    fotosIniciales: serie("rocio-ini"),
-    fotosIntra: [
-      { id: "fi-r1", url: fotoDemo("rocio-intra-1", 480, 600), fecha: "2025-02-10", nota: "Control de alineación" },
-    ],
-    fotosFinales: serie("rocio-fin"),
-    videosIniciales: [],
-    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    radiografias: [
-      {
-        id: "rx-r1",
-        nombre: "panoramica-final.jpg",
-        momento: "Final",
-        formato: "imagen",
-        url: fotoDemo("rx-rocio-1", 600, 400),
-      },
-    ],
-    estudios: [],
     diagnostico: "Recidiva de apiñamiento anteroinferior posterior al tratamiento, por falta de contención.",
     plan:
       "Realineación con alineadores removibles. Contención fija definitiva de la 33 a la 43. Finalizado en julio de 2025.",
@@ -439,15 +301,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       "Sin alergias conocidas. Primera vez con relleno: pidió expresamente algo sutil, que no se note. Trabaja en un estudio jurídico, prefiere turnos a la tarde.",
     derivadoPor: "Consulta espontánea (Instagram)",
     activo: true,
-    fotosIniciales: serieVacia(),
-    fotosIntra: [],
-    fotosFinales: serieVacia(),
-    videosIniciales: [],
-    videosFinales: [],
     fotosAntes: serieAF("malena-antes"),
     fotosDespues: serieAF("malena-despues", 2),
-    radiografias: [],
-    estudios: [],
     diagnostico:
       "Pérdida de volumen en el tercio medio. Surcos nasogenianos marcados y leve descenso de la cola de la ceja.",
     plan:

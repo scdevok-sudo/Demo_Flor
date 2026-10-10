@@ -1,5 +1,4 @@
 export type Sede = "La Plata" | "Tandil"
-export type MomentoEstudio = "Inicial" | "Intermedio" | "Final"
 export type MedioPago = "Efectivo" | "Transferencia"
 
 /**
@@ -16,7 +15,6 @@ export const CATEGORIAS: Categoria[] = [
   "Alineadores",
   "Armonización facial",
 ]
-export const MOMENTOS: MomentoEstudio[] = ["Inicial", "Intermedio", "Final"]
 export const MEDIOS_PAGO: MedioPago[] = ["Efectivo", "Transferencia"]
 
 export function esArmonizacion(categoria: Categoria): boolean {
@@ -55,23 +53,6 @@ export type SlotFoto = SlotSerie | SlotAF
 
 export interface FotoSlot {
   slot: SlotFoto
-  url: string | null
-}
-
-export interface FotoFechada {
-  id: string
-  url: string
-  fecha: string
-  nota: string
-  /** Placeholder de video: se dibuja con un ícono de reproducción, no se reproduce. */
-  video?: boolean
-}
-
-export interface Archivo {
-  id: string
-  nombre: string
-  momento: MomentoEstudio
-  formato: "imagen" | "pdf"
   url: string | null
 }
 
@@ -115,17 +96,10 @@ export interface Paciente {
   particularidades: string
   derivadoPor: string
   activo: boolean
-  fotosIniciales: FotoSlot[]
-  fotosIntra: FotoFechada[]
-  fotosFinales: FotoSlot[]
-  videosIniciales: FotoFechada[]
-  videosFinales: FotoFechada[]
   /** Sólo armonización facial: 3 tomas previas al tratamiento. */
   fotosAntes: FotoSlot[]
   /** Sólo armonización facial: las mismas 3 tomas después. */
   fotosDespues: FotoSlot[]
-  radiografias: Archivo[]
-  estudios: Archivo[]
   diagnostico: string
   plan: string
   tecnica: string
@@ -143,15 +117,8 @@ export interface Paciente {
   seguimiento: EntradaSeguimiento[]
 }
 
-export const MAX_FOTOS_INTRA = 20
-export const MAX_RADIOGRAFIAS = 6
-export const MAX_ESTUDIOS = 4
 export const MAX_CUOTAS = 8
 export const PLAZO_CUOTAS_MESES = 6
-
-export function serieVacia(): FotoSlot[] {
-  return SLOTS_SERIE.map((s) => ({ slot: s.id, url: null }))
-}
 
 export function serieAFVacia(): FotoSlot[] {
   return SLOTS_AF.map((s) => ({ slot: s.id, url: null }))
@@ -187,15 +154,8 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     particularidades: "",
     derivadoPor: "",
     activo: true,
-    fotosIniciales: serieVacia(),
-    fotosIntra: [],
-    fotosFinales: serieVacia(),
-    videosIniciales: [],
-    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    radiografias: [],
-    estudios: [],
     diagnostico: "",
     plan: "",
     tecnica: "",

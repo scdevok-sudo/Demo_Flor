@@ -1,48 +1,57 @@
 import { useState } from "react"
-import { ImageOff, Play, Plus, Trash2, Video } from "lucide-react"
+import { ImageOff, Plus, RefreshCw, Video } from "lucide-react"
 import { cn } from "cn"
 
 import { TituloBloque } from "@/components/campos"
-import { RecuadroFoto } from "@/components/fotos"
+import { ContenidoArchivo, RecuadroSlot, SelectorArchivo } from "@/components/fotos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Switch } from "@/components/ui/switch"
 import {
-  MAX_FOTOS_INTRA,
-  SLOTS_BOCA,
-  SLOTS_CARA,
-  type FotoFechada,
-  type FotoSlot,
-  type Paciente,
-  type SlotFoto,
-} from "@/lib/tipos"
-import { fechaCorta, fotoDemo, hoyISO, nuevoId } from "@/lib/util"
+  TOPES,
+  etiquetaDeSlot,
+  slotDeEtiqueta,
+  zonaDeSlot,
+  type ArchivoClinico,
+  type Origen,
+} from "@/data/archivos"
+import { useArchivos, type Archivos } from "@/data/useArchivos"
+import { SLOTS_BOCA, SLOTS_CARA, type Paciente } from "@/lib/tipos"
+import { fechaCorta } from "@/lib/util"
 
 interface Props {
   paciente: Paciente
-  actualizar: (cambios: Partial<Paciente>) => void
 }
 
-/** Serie fija de 10 fotos: 4 de cara + 6 de boca. */
+const ACEPTA_MEDIA = "image/*,video/*"
+const TIPOS_MEDIA = ["imagen", "video"] as const
+
+type Slot = { id: string; etiqueta: string }
+
+/** Serie fija de 10 tomas (foto o video): 4 de cara + 6 de boca. */
 function Serie({
-  fotos,
-  semilla,
-  onCambio,
+  origen,
+  archivos,
   comparar,
 }: {
-  fotos: FotoSlot[]
-  semilla: string
-  onCambio: (fotos: FotoSlot[]) => void
-  comparar?: FotoSlot[]
+  origen: "foto_inicial" | "foto_final"
+  archivos: Archivos
+  comparar?: ArchivoClinico[]
 }) {
-  const url = (slot: SlotFoto) => fotos.find((f) => f.slot === slot)?.url ?? null
-  const urlComparada = (slot: SlotFoto) => comparar?.find((f) => f.slot === slot)?.url ?? null
+  const delOrigen = archivos.delOrigen(origen)
+  const de = (lista: ArchivoClinico[], slot: string) =>
+    lista.find((a) => slotDeEtiqueta(a.etiqueta) === slot) ?? null
 
-  const set = (slot: SlotFoto, valor: string | null) =>
-    onCambio(fotos.map((f) => (f.slot === slot ? { ...f, url: valor } : f)))
+  const subirSlot = (slot: string, archivo: ArchivoClinico | null, file: File) =>
+    archivo
+      ? archivos.reemplazar(archivo, file, [...TIPOS_MEDIA])
+      : archivos.subir(`${origen}:${slot}`, origen, file, [...TIPOS_MEDIA], {
+          zona: zonaDeSlot(slot),
+          etiqueta: etiquetaDeSlot(slot),
+        })
 
-  const grupo = (titulo: string, slots: readonly { id: SlotFoto; etiqueta: string }[]) => (
+  const grupo = (titulo: string, slots: readonly Slot[]) => (
     <div className="space-y-2.5">
       <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
         {titulo}
@@ -56,45 +65,50 @@ function Serie({
             : "grid-cols-2 min-[440px]:grid-cols-3 lg:grid-cols-5"
         )}
       >
-        {slots.map((s) => (
-          <div key={s.id} className={comparar ? "space-y-2" : undefined}>
-            {comparar ? (
-              <div className="grid grid-cols-2 gap-1.5">
-                <ComparaFoto url={urlComparada(s.id)} etiqueta="Antes" />
-                <ComparaFoto url={url(s.id)} etiqueta="Después" />
+        {slots.map((s) => {
+          const archivo = de(delOrigen, s.id)
+          if (comparar) {
+            const antes = de(comparar, s.id)
+            return (
+              <div key={s.id} className="space-y-2">
+                <div className="grid grid-cols-2 gap-1.5">
+                  <ComparaFoto archivo={antes} etiqueta="Antes" />
+                  <ComparaFoto archivo={archivo} etiqueta="Después" />
+                </div>
+                <p className="text-center text-[11px] leading-tight text-muted-foreground">
+                  {s.etiqueta}
+                </p>
               </div>
-            ) : (
-              <RecuadroFoto
-                url={url(s.id)}
-                etiqueta={s.etiqueta}
-                onSubir={() => set(s.id, fotoDemo(`${semilla}-${s.id}`))}
-                onQuitar={() => set(s.id, null)}
-              />
-            )}
-            {comparar ? (
-              <p className="text-center text-[11px] leading-tight text-muted-foreground">
-                {s.etiqueta}
-              </p>
-            ) : null}
-          </div>
-        ))}
+            )
+          }
+          return (
+            <RecuadroSlot
+              key={s.id}
+              archivo={archivo}
+              etiqueta={s.etiqueta}
+              accept={ACEPTA_MEDIA}
+              subiendo={archivos.subiendo.includes(archivo?.id ?? `${origen}:${s.id}`)}
+              onArchivo={(file) => subirSlot(s.id, archivo, file)}
+            />
+          )
+        })}
       </div>
     </div>
   )
 
   return (
     <div className="space-y-5">
-      {grupo("Cara", SLOTS_CARA as readonly { id: SlotFoto; etiqueta: string }[])}
-      {grupo("Boca", SLOTS_BOCA as readonly { id: SlotFoto; etiqueta: string }[])}
+      {grupo("Cara", SLOTS_CARA)}
+      {grupo("Boca", SLOTS_BOCA)}
     </div>
   )
 }
 
-function ComparaFoto({ url, etiqueta }: { url: string | null; etiqueta: string }) {
+function ComparaFoto({ archivo, etiqueta }: { archivo: ArchivoClinico | null; etiqueta: string }) {
   return (
     <div className="relative aspect-4/5 overflow-hidden rounded-lg border border-border bg-muted">
-      {url ? (
-        <img src={url} alt={etiqueta} loading="lazy" className="size-full object-cover" />
+      {archivo ? (
+        <ContenidoArchivo archivo={archivo} etiqueta={etiqueta} />
       ) : (
         <div className="flex size-full items-center justify-center text-muted-foreground">
           <ImageOff className="size-4" />
@@ -107,150 +121,92 @@ function ComparaFoto({ url, etiqueta }: { url: string | null; etiqueta: string }
   )
 }
 
-/** Foto o video con fecha y nota. El video es un placeholder: no se reproduce. */
-function TileFechado({
-  item,
-  onCambioNota,
-  onQuitar,
-}: {
-  item: FotoFechada
-  onCambioNota: (nota: string) => void
-  onQuitar: () => void
-}) {
+/** Foto o video de control con fecha y nota. Se puede reemplazar, no borrar. */
+function TileFechado({ archivo, archivos }: { archivo: ArchivoClinico; archivos: Archivos }) {
+  const [nota, setNota] = useState(archivo.etiqueta ?? "")
+  const esVideo = archivo.tipo === "video"
+  const subiendo = archivos.subiendo.includes(archivo.id)
+
+  function guardarNota() {
+    const limpia = nota.trim()
+    if (limpia !== (archivo.etiqueta ?? "")) void archivos.actualizar(archivo, { etiqueta: limpia || null })
+  }
+
   return (
     <div className="space-y-1.5">
-      <div className="group relative aspect-4/5 overflow-hidden rounded-xl border border-border bg-muted">
-        <img
-          src={item.url}
-          alt={item.nota || (item.video ? "Video" : "Control")}
-          loading="lazy"
-          className="size-full object-cover"
-        />
-        {item.video ? (
-          <>
-            <div className="absolute inset-0 flex items-center justify-center bg-brand-dark/25">
-              <span className="flex size-11 items-center justify-center rounded-full bg-white/90 text-brand-dark shadow-sm">
-                <Play className="size-5 fill-current" />
-              </span>
-            </div>
-            <span className="absolute top-1.5 left-1.5 inline-flex items-center gap-1 rounded bg-brand-dark/85 px-1.5 py-0.5 text-[10px] font-medium text-white">
-              <Video className="size-3" />
-              Video
-            </span>
-          </>
-        ) : null}
-        <button
-          type="button"
-          onClick={onQuitar}
-          aria-label={item.video ? "Quitar video" : "Quitar foto"}
-          className="absolute top-1 right-1 rounded-lg bg-white/90 p-2.5 text-brand-dark shadow-sm transition-opacity md:p-1.5 md:top-1.5 md:right-1.5 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100"
+      <div className="relative aspect-4/5 overflow-hidden rounded-xl border border-border bg-muted">
+        <ContenidoArchivo archivo={archivo} etiqueta={nota || "Control"} />
+        <SelectorArchivo
+          accept={ACEPTA_MEDIA}
+          onArchivo={(file) => archivos.reemplazar(archivo, file, [...TIPOS_MEDIA])}
+          disabled={subiendo}
+          etiqueta={esVideo ? "Reemplazar video" : "Reemplazar foto"}
+          className="absolute top-1 right-1 rounded-lg bg-white/90 p-2.5 text-brand-dark shadow-sm md:top-1.5 md:right-1.5 md:p-1.5"
         >
-          <Trash2 className="size-5 md:size-3.5" />
-        </button>
-        <span className="absolute bottom-1.5 left-1.5 rounded bg-brand-dark/85 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
-          {fechaCorta(item.fecha)}
+          <RefreshCw className="size-5 md:size-3.5" />
+        </SelectorArchivo>
+        <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-brand-dark/85 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
+          {fechaCorta(archivo.fecha)}
         </span>
+        {subiendo ? (
+          <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-xs font-medium text-brand-dark">
+            Subiendo…
+          </div>
+        ) : null}
       </div>
       <Input
         className="h-9 border-transparent bg-transparent px-1 text-xs hover:border-input md:h-8"
-        value={item.nota}
-        placeholder={item.video ? "Nota del video…" : "Nota del control…"}
-        onChange={(e) => onCambioNota(e.target.value)}
+        value={nota}
+        placeholder={esVideo ? "Nota del video…" : "Nota del control…"}
+        onChange={(e) => setNota(e.target.value)}
+        onBlur={guardarNota}
       />
     </div>
   )
 }
 
-function nuevoVideo(semilla: string): FotoFechada {
-  return {
-    id: nuevoId("vid"),
-    url: fotoDemo(`${semilla}-${Date.now()}`, 480, 600),
-    fecha: hoyISO(),
-    nota: "",
-    video: true,
-  }
+function contar(archivos: Archivos, origen: Origen): number {
+  return archivos.delOrigen(origen).length
 }
 
-/** Videos de una sección de fotos. */
-function Videos({
-  videos,
-  semilla,
-  onCambio,
-}: {
-  videos: FotoFechada[]
-  semilla: string
-  onCambio: (videos: FotoFechada[]) => void
-}) {
-  return (
-    <div className="space-y-2.5 border-t border-border pt-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
-          Videos
-        </p>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="h-9"
-          onClick={() => onCambio([nuevoVideo(semilla), ...videos])}
-        >
-          <Video className="size-3.5" />
-          Subir video
-        </Button>
-      </div>
-      {videos.length === 0 ? (
-        <p className="text-xs text-muted-foreground">Sin videos cargados.</p>
-      ) : (
-        <div className="grid grid-cols-2 gap-2.5 min-[440px]:grid-cols-3 sm:gap-3 lg:grid-cols-5">
-          {videos.map((v) => (
-            <TileFechado
-              key={v.id}
-              item={v}
-              onCambioNota={(nota) =>
-                onCambio(videos.map((x) => (x.id === v.id ? { ...x, nota } : x)))
-              }
-              onQuitar={() => onCambio(videos.filter((x) => x.id !== v.id))}
-            />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function contar(fotos: FotoSlot[]): number {
-  return fotos.filter((f) => f.url).length
-}
-
-export function Fotos({ paciente, actualizar }: Props) {
+export function Fotos({ paciente }: Props) {
+  const archivos = useArchivos(paciente.id)
   const [comparando, setComparando] = useState(false)
-  const intra = paciente.fotosIntra
-  const lleno = intra.length >= MAX_FOTOS_INTRA
+  const intra = archivos.delOrigen("intra_tratamiento")
+  const topeIntra = TOPES.intra_tratamiento
+  const lleno = intra.length >= topeIntra
+
+  if (archivos.cargando) {
+    return <p className="py-10 text-center text-sm text-muted-foreground">Cargando fotos…</p>
+  }
 
   return (
     <div className="space-y-5">
+      {archivos.error ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          {archivos.error}
+          <Button type="button" variant="outline" size="sm" onClick={archivos.recargar}>
+            Recargar
+          </Button>
+        </div>
+      ) : null}
+
       {/* --- Iniciales ------------------------------------------------------ */}
       <Card>
         <CardContent className="space-y-5 pt-6">
           <TituloBloque
             titulo="Fotografías iniciales"
-            descripcion="Serie fija de 10 tomas: 4 de cara y 6 de boca."
+            descripcion="Serie fija de 10 tomas, foto o video: 4 de cara y 6 de boca."
             accion={
               <span className="text-xs font-medium text-muted-foreground tabular-nums">
-                {contar(paciente.fotosIniciales)} de 10 cargadas
+                {contar(archivos, "foto_inicial")} de {TOPES.foto_inicial} cargadas
               </span>
             }
           />
-          <Serie
-            fotos={paciente.fotosIniciales}
-            semilla={`${paciente.id}-ini`}
-            onCambio={(fotosIniciales) => actualizar({ fotosIniciales })}
-          />
-          <Videos
-            videos={paciente.videosIniciales}
-            semilla={`${paciente.id}-vid-ini`}
-            onCambio={(videosIniciales) => actualizar({ videosIniciales })}
-          />
+          <Serie origen="foto_inicial" archivos={archivos} />
         </CardContent>
       </Card>
 
@@ -259,72 +215,52 @@ export function Fotos({ paciente, actualizar }: Props) {
         <CardContent className="space-y-5 pt-6">
           <TituloBloque
             titulo="Intra-tratamiento"
-            descripcion={`Hasta ${MAX_FOTOS_INTRA} entre fotos y videos, con la fecha del control.`}
+            descripcion={`Hasta ${topeIntra} entre fotos y videos, con la fecha del control.`}
             accion={
               <div className="flex flex-wrap items-center gap-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
+                <SelectorArchivo
+                  accept="image/*"
                   disabled={lleno}
-                  onClick={() =>
-                    actualizar({
-                      fotosIntra: [
-                        {
-                          id: nuevoId("foto"),
-                          url: fotoDemo(`${paciente.id}-intra-${Date.now()}`, 480, 600),
-                          fecha: hoyISO(),
-                          nota: "",
-                        },
-                        ...intra,
-                      ],
-                    })
+                  onArchivo={(file) =>
+                    archivos.subir("intra:foto", "intra_tratamiento", file, ["imagen"])
                   }
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
                 >
                   <Plus className="size-3.5" />
                   Agregar foto
-                </Button>
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="h-9"
+                </SelectorArchivo>
+                <SelectorArchivo
+                  accept="video/*"
                   disabled={lleno}
-                  onClick={() =>
-                    actualizar({ fotosIntra: [nuevoVideo(`${paciente.id}-intra-vid`), ...intra] })
+                  onArchivo={(file) =>
+                    archivos.subir("intra:video", "intra_tratamiento", file, ["video"])
                   }
+                  className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
                 >
                   <Video className="size-3.5" />
                   Subir video
-                </Button>
+                </SelectorArchivo>
               </div>
             }
           />
+
+          {archivos.subiendo.some((c) => c.startsWith("intra:")) ? (
+            <p className="text-xs text-muted-foreground">Subiendo archivo…</p>
+          ) : null}
 
           {intra.length === 0 ? (
             <Vacio texto="Todavía no hay fotos de control cargadas." />
           ) : (
             <div className="grid grid-cols-2 gap-2.5 min-[440px]:grid-cols-3 sm:gap-3 lg:grid-cols-5">
-              {intra.map((f) => (
-                <TileFechado
-                  key={f.id}
-                  item={f}
-                  onCambioNota={(nota) =>
-                    actualizar({
-                      fotosIntra: intra.map((x) => (x.id === f.id ? { ...x, nota } : x)),
-                    })
-                  }
-                  onQuitar={() => actualizar({ fotosIntra: intra.filter((x) => x.id !== f.id) })}
-                />
+              {[...intra].reverse().map((a) => (
+                <TileFechado key={a.id} archivo={a} archivos={archivos} />
               ))}
             </div>
           )}
-          {lleno ? (
-            <p className="text-xs text-muted-foreground">
-              Llegaste al máximo de {MAX_FOTOS_INTRA} fotos y videos de control.
-            </p>
-          ) : null}
+          <p className="text-xs text-muted-foreground tabular-nums">
+            {intra.length} de {topeIntra} fotos y videos
+            {lleno ? " · llegaste al máximo" : ""}
+          </p>
         </CardContent>
       </Card>
 
@@ -342,19 +278,13 @@ export function Fotos({ paciente, actualizar }: Props) {
             }
           />
           <Serie
-            fotos={paciente.fotosFinales}
-            semilla={`${paciente.id}-fin`}
-            onCambio={(fotosFinales) => actualizar({ fotosFinales })}
-            comparar={comparando ? paciente.fotosIniciales : undefined}
-          />
-          <Videos
-            videos={paciente.videosFinales}
-            semilla={`${paciente.id}-vid-fin`}
-            onCambio={(videosFinales) => actualizar({ videosFinales })}
+            origen="foto_final"
+            archivos={archivos}
+            comparar={comparando ? archivos.delOrigen("foto_inicial") : undefined}
           />
           {!comparando ? (
             <p className="text-xs text-muted-foreground tabular-nums">
-              {contar(paciente.fotosFinales)} de 10 cargadas
+              {contar(archivos, "foto_final")} de {TOPES.foto_final} cargadas
             </p>
           ) : null}
         </CardContent>

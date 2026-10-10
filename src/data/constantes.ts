@@ -20,3 +20,24 @@ export const COLUMNAS_PACIENTES = {
   activo: "activo",
   updatedAt: "updated_at",
 } as const
+
+export const TABLA_ARCHIVOS = "archivos_clinicos"
+
+export const COLUMNAS_ARCHIVOS = {
+  id: "id",
+  pacienteId: "paciente_id",
+  origen: "origen",
+  zona: "zona",
+  etiqueta: "etiqueta",
+  tipoArchivo: "tipo_archivo",
+  etapa: "etapa",
+  storagePath: "storage_path",
+  fecha: "fecha",
+  createdAt: "created_at",
+} as const
+
+export const BUCKETS = {
+  fotos: "pacientes-fotos",
+  estudios: "pacientes-estudios",
+  presupuestos: "presupuestos-pdf",
+} as const

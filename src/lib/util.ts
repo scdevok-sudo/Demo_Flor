@@ -8,7 +8,9 @@ export function nuevoId(prefijo = "id"): string {
 }
 
 export function hoyISO(): string {
-  return new Date().toISOString().slice(0, 10)
+  const d = new Date()
+  const dos = (n: number) => String(n).padStart(2, "0")
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`
 }
 
 /** 2026-03-14 -> 14/03/2026 */
