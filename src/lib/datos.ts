@@ -3,9 +3,8 @@ import {
   serieAFVacia,
   type FotoSlot,
   type Paciente,
-  type Tramite,
 } from "@/lib/tipos"
-import { aISO, fotoDemo, sumarDias } from "@/lib/util"
+import { fotoDemo } from "@/lib/util"
 
 /** Las 3 tomas de armonizacion facial, con las primeras `cuantos` cargadas. */
 function serieAF(semilla: string, cuantos: number = SLOTS_AF.length): FotoSlot[] {
@@ -141,23 +140,3 @@ export const PACIENTES_DEMO: Paciente[] = [
     fotosDespues: serieAF("malena-despues", 2),
   },
 ]
-
-/** Trámites de ejemplo: algunos pacientes figuran en las dos listas. */
-export function tramitesDemo(): Tramite[] {
-  const hace = (dias: number) => aISO(sumarDias(new Date(), -dias))
-  const tr = (id: string, pacienteId: string, tipo: Tramite["tipo"], dias: number): Tramite => ({
-    id,
-    pacienteId,
-    tipo,
-    agregado: hace(dias),
-    resuelto: false,
-  })
-  return [
-    tr("tra-1", "pac-2", "obra-social", 2),
-    tr("tra-2", "pac-3", "obra-social", 6),
-    tr("tra-3", "pac-5", "obra-social", 11),
-    tr("tra-4", "pac-1", "facturacion", 1),
-    tr("tra-5", "pac-3", "facturacion", 4),
-    tr("tra-6", "pac-5", "facturacion", 9),
-  ]
-}

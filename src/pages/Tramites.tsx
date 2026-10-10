@@ -4,6 +4,7 @@ import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
+import { useTramites } from "@/data/useTramites"
 import { useFichero } from "@/lib/store"
 import { TIPOS_TRAMITE, type Paciente, type Tramite } from "@/lib/tipos"
 import { fechaCorta } from "@/lib/util"
@@ -80,7 +81,8 @@ function Item({
 }
 
 export function Tramites() {
-  const { tramites, pacientes, marcarTramite } = useFichero()
+  const { pacientes } = useFichero()
+  const { tramites, cargando, error, marcar, recargar } = useTramites()
   const pacientePorId = new Map(pacientes.map((p) => [p.id, p]))
 
   return (
@@ -92,6 +94,18 @@ export function Tramites() {
         </p>
       </div>
 
+      {error ? (
+        <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">
+          {error}
+          <Button type="button" variant="outline" size="sm" onClick={recargar}>
+            Reintentar
+          </Button>
+        </div>
+      ) : null}
+
+      {cargando ? (
+        <p className="py-12 text-center text-sm text-muted-foreground">Cargando trámites…</p>
+      ) : (
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {TIPOS_TRAMITE.map(({ id, etiqueta }) => {
           const lista = tramites.filter((t) => t.tipo === id)
@@ -122,7 +136,7 @@ export function Tramites() {
                         key={t.id}
                         tramite={t}
                         paciente={pacientePorId.get(t.pacienteId)}
-                        onMarcar={(resuelto) => marcarTramite(t.id, resuelto)}
+                        onMarcar={(resuelto) => void marcar(t.id, resuelto)}
                       />
                     ))}
                   </ul>
@@ -132,6 +146,7 @@ export function Tramites() {
           )
         })}
       </div>
+      )}
     </div>
   )
 }

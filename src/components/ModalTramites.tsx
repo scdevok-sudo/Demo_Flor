@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ClipboardCheck } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -11,7 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
-import { useFichero } from "@/lib/store"
+import * as datos from "@/data/tramites"
 import { TIPOS_TRAMITE, type Paciente, type TipoTramite } from "@/lib/tipos"
 
 /** Botón de la ficha + diálogo para elegir a cuál de las dos listas (o ambas) sumar al paciente. */
@@ -35,11 +35,28 @@ export function AgregarATramites({ paciente }: { paciente: Paciente }) {
 }
 
 function Contenido({ paciente, onCerrar }: { paciente: Paciente; onCerrar: () => void }) {
-  const { tramites, agregarATramites } = useFichero()
+  const [pendientes, setPendientes] = useState<TipoTramite[] | null>(null)
   const [elegidos, setElegidos] = useState<TipoTramite[]>([])
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  const yaPendiente = (tipo: TipoTramite) =>
-    tramites.some((t) => t.pacienteId === paciente.id && t.tipo === tipo && !t.resuelto)
+  useEffect(() => {
+    void datos.pendientesDe(paciente.id).then((r) => {
+      if (r.ok) setPendientes(r.valor)
+      else setError(r.error)
+    })
+  }, [paciente.id])
+
+  const yaPendiente = (tipo: TipoTramite) => pendientes?.includes(tipo) ?? false
+
+  async function agregar() {
+    setGuardando(true)
+    setError(null)
+    const r = await datos.agregar(paciente.id, elegidos)
+    setGuardando(false)
+    if (r.ok) onCerrar()
+    else setError(r.error)
+  }
 
   const alternar = (tipo: TipoTramite, marcado: boolean) =>
     setElegidos((e) => (marcado ? [...e, tipo] : e.filter((x) => x !== tipo)))
@@ -75,19 +92,20 @@ function Contenido({ paciente, onCerrar }: { paciente: Paciente; onCerrar: () =>
         })}
       </div>
 
+      {error ? (
+        <p role="alert" className="text-sm text-destructive">{error}</p>
+      ) : null}
+
       <DialogFooter>
         <Button variant="outline" className="h-11 sm:h-9" onClick={onCerrar}>
           Cancelar
         </Button>
         <Button
           className="h-11 sm:h-9"
-          disabled={elegidos.length === 0}
-          onClick={() => {
-            agregarATramites(paciente.id, elegidos)
-            onCerrar()
-          }}
+          disabled={elegidos.length === 0 || pendientes === null || guardando}
+          onClick={() => void agregar()}
         >
-          Agregar
+          {guardando ? "Guardando…" : "Agregar"}
         </Button>
       </DialogFooter>
     </>
