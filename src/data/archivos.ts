@@ -99,12 +99,13 @@ async function urlFirmada(origen: Origen, path: string): Promise<string | null> 
   return data?.signedUrl ?? null
 }
 
-export async function listar(pacienteId: string): Promise<Resultado<ArchivoClinico[]>> {
-  const { data, error } = await supabase
-    .from(TABLA_ARCHIVOS)
-    .select("*")
-    .eq(C.pacienteId, pacienteId)
-    .order(C.createdAt, { ascending: true })
+export async function listar(
+  pacienteId: string,
+  origen?: Origen
+): Promise<Resultado<ArchivoClinico[]>> {
+  let consulta = supabase.from(TABLA_ARCHIVOS).select("*").eq(C.pacienteId, pacienteId)
+  if (origen) consulta = consulta.eq(C.origen, origen)
+  const { data, error } = await consulta.order(C.createdAt, { ascending: true })
   if (error) return { ok: false, error: "No se pudieron cargar los archivos." }
   const archivos = await Promise.all(
     (data as Fila[]).map(async (f) =>

@@ -141,7 +141,7 @@ export function FichaPaciente() {
         </TabsContent>
 
         <TabsContent value="seguimiento" className="pt-5">
-          <Seguimiento paciente={paciente} actualizar={actualizar} />
+          <Seguimiento key={paciente.id} paciente={paciente} />
         </TabsContent>
 
         <TabsContent value="turnos" className="pt-5">

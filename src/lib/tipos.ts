@@ -56,12 +56,6 @@ export interface FotoSlot {
   url: string | null
 }
 
-export interface EntradaSeguimiento {
-  id: string
-  fecha: string
-  texto: string
-}
-
 export interface Paciente {
   id: string
   nombre: string
@@ -83,7 +77,6 @@ export interface Paciente {
   fotosAntes: FotoSlot[]
   /** Sólo armonización facial: las mismas 3 tomas después. */
   fotosDespues: FotoSlot[]
-  seguimiento: EntradaSeguimiento[]
 }
 
 export const MAX_CUOTAS = 8
@@ -117,7 +110,6 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    seguimiento: [],
   }
 }
 

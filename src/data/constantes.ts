@@ -89,3 +89,13 @@ export const COLUMNAS_MANTENIMIENTO = {
   monto: "monto",
   estado: "estado",
 } as const
+
+export const TABLA_SEGUIMIENTO = "seguimiento"
+
+export const COLUMNAS_SEGUIMIENTO = {
+  id: "id",
+  pacienteId: "paciente_id",
+  fecha: "fecha",
+  texto: "texto",
+  createdAt: "created_at",
+} as const

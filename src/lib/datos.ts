@@ -38,26 +38,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    seguimiento: [
-      {
-        id: "sg-b3",
-        fecha: "2026-08-05",
-        texto:
-          "Control de expansión. Se activa el tornillo un cuarto de vuelta. La mamá refiere buena adaptación al aparato.",
-      },
-      {
-        id: "sg-b2",
-        fecha: "2026-06-10",
-        texto:
-          "Colocación de placa de expansión. Se dan indicaciones de uso y limpieza por escrito.",
-      },
-      {
-        id: "sg-b1",
-        fecha: "2026-05-18",
-        texto:
-          "Toma de impresiones y registro de mordida. Se pide interconsulta con fonoaudiología.",
-      },
-    ],
   },
   {
     id: "pac-2",
@@ -79,13 +59,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    seguimiento: [
-      {
-        id: "sg-c1",
-        fecha: "2026-09-04",
-        texto: "Cementado superior. Arco 014 NiTi. Se entregan indicaciones y cera.",
-      },
-    ],
   },
   {
     id: "pac-3",
@@ -107,33 +80,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    seguimiento: [
-      {
-        id: "sg-m5",
-        fecha: "2026-09-08",
-        texto: "Detallado final con dobleces de segundo orden. Se proyecta el retiro para noviembre.",
-      },
-      {
-        id: "sg-m4",
-        fecha: "2026-07-14",
-        texto: "Se coloca arco de acero 019x025 superior e inferior. Espacio de la 46 cerrado.",
-      },
-      {
-        id: "sg-m3",
-        fecha: "2026-03-17",
-        texto: "Control de cierre de espacios. Cadena elastomérica del 45 al 47.",
-      },
-      {
-        id: "sg-m2",
-        fecha: "2026-01-20",
-        texto: "Cambio de arco a 016x022 NiTi. Se refuerza la indicación de dejar de fumar.",
-      },
-      {
-        id: "sg-m1",
-        fecha: "2025-11-12",
-        texto: "Cementado inferior y colocación del microtornillo de anclaje. Sin complicaciones.",
-      },
-    ],
   },
   {
     id: "pac-4",
@@ -155,13 +101,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    seguimiento: [
-      {
-        id: "sg-j1",
-        fecha: "2026-09-01",
-        texto: "Primera consulta. Se explica el plan a la mamá y se pide la panorámica.",
-      },
-    ],
   },
   {
     id: "pac-5",
@@ -182,14 +121,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: false,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    seguimiento: [
-      {
-        id: "sg-r2",
-        fecha: "2025-07-22",
-        texto: "Alta del tratamiento. Se coloca contención fija inferior y se entrega la placa superior.",
-      },
-      { id: "sg-r1", fecha: "2025-02-10", texto: "Control de alineación. Buen calce de los alineadores." },
-    ],
   },
   {
     id: "pac-6",
@@ -210,7 +141,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAF("malena-antes"),
     fotosDespues: serieAF("malena-despues", 2),
-    seguimiento: [],
   },
 ]
 
