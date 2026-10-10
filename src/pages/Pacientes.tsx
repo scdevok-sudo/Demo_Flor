@@ -102,7 +102,7 @@ function Chips<T extends string>({
 }
 
 export function Pacientes() {
-  const { pacientes } = useFichero()
+  const { pacientes, cargandoPacientes, errorPacientes, recargarPacientes } = useFichero()
   const navigate = useNavigate()
   const [busqueda, setBusqueda] = useState("")
   const [sede, setSede] = useState<FiltroSede>("Todas")
@@ -220,7 +220,7 @@ export function Pacientes() {
                       <p className="font-medium text-brand-dark">
                         {p.apellido}, {p.nombre}
                       </p>
-                      <p className="text-xs text-muted-foreground">{p.edad} años</p>
+                      {p.edad ? <p className="text-xs text-muted-foreground">{p.edad} años</p> : null}
                     </div>
                   </div>
                 </TableCell>
@@ -240,7 +240,9 @@ export function Pacientes() {
           </TableBody>
         </Table>
 
-        {resultados.length === 0 ? <SinResultados /> : null}
+        {resultados.length === 0 ? (
+          <SinResultados cargando={cargandoPacientes} error={errorPacientes} reintentar={recargarPacientes} />
+        ) : null}
       </div>
 
       {/* Listado — mobile */}
@@ -270,7 +272,7 @@ export function Pacientes() {
         ))}
         {resultados.length === 0 ? (
           <div className="rounded-xl border border-border bg-card">
-            <SinResultados />
+            <SinResultados cargando={cargandoPacientes} error={errorPacientes} reintentar={recargarPacientes} />
           </div>
         ) : null}
       </div>
@@ -278,7 +280,28 @@ export function Pacientes() {
   )
 }
 
-function SinResultados() {
+function SinResultados({
+  cargando,
+  error,
+  reintentar,
+}: {
+  cargando: boolean
+  error: string | null
+  reintentar: () => void
+}) {
+  if (cargando) {
+    return <p className="px-5 py-14 text-center text-sm text-muted-foreground">Cargando pacientes…</p>
+  }
+  if (error) {
+    return (
+      <div className="px-5 py-14 text-center">
+        <p className="font-heading text-lg text-brand-dark">{error}</p>
+        <Button className="mt-4 h-10" onClick={reintentar}>
+          Reintentar
+        </Button>
+      </div>
+    )
+  }
   return (
     <div className="px-5 py-14 text-center">
       <p className="font-heading text-lg text-brand-dark">Sin resultados</p>

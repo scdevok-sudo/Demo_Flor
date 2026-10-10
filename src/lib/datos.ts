@@ -5,11 +5,19 @@ import {
   serieAFVacia,
   serieVacia,
   type Cuota,
+  type FotoFechada,
   type FotoSlot,
+  type ConfigAgenda,
   type Paciente,
+  type Tramite,
   type Turno,
 } from "@/lib/tipos"
 import { aISO, fotoDemo, lunesDe, sumarDias } from "@/lib/util"
+
+/** Placeholder de video para la demo: se marca como video, no se reproduce. */
+function videoDemo(id: string, semilla: string, fecha: string, nota: string): FotoFechada {
+  return { id, url: fotoDemo(semilla, 480, 600), fecha, nota, video: true }
+}
 
 /** Completa los primeros `cuantos` slots de la serie con fotos de relleno. */
 function serie(semilla: string, cuantos = SLOTS_SERIE.length): FotoSlot[] {
@@ -28,8 +36,12 @@ function serieAF(semilla: string, cuantos: number = SLOTS_AF.length): FotoSlot[]
 }
 
 /** Marca como efectuadas las primeras `pagas` cuotas. */
-function cuotas(pagas: number, medio: Cuota["medio"] = "Transferencia"): Cuota[] {
-  return cuotasVacias().map((c) => ({
+function cuotas(
+  pagas: number,
+  medio: Cuota["medio"] = "Transferencia",
+  cantidad = 8
+): Cuota[] {
+  return cuotasVacias(cantidad).map((c) => ({
     ...c,
     medio,
     efectuado: c.mes <= pagas,
@@ -41,6 +53,7 @@ export const PACIENTES_DEMO: Paciente[] = [
     id: "pac-1",
     nombre: "Bautista",
     apellido: "Fernández",
+    mail: "familia.fernandez@example.com",
     dni: "54892117",
     ocupacion: "Estudiante — 4.º grado",
     edad: "9",
@@ -50,7 +63,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     anamnesis:
       "Respirador bucal. Amígdalas operadas a los 6 años. Sin alergias conocidas ni medicación habitual. Buena higiene, con supervisión de la mamá.",
     obraSocial: "",
-    nroAfiliado: "",
     particularidades:
       "Mamá: Verónica (3412-556677). Papá: Diego. Juega al fútbol los sábados, conviene no darle turnos temprano ese día. Le da impresión el aspirador.",
     derivadoPor: "Dra. Lucía Bertoni (odontopediatra)",
@@ -71,6 +83,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       },
     ],
     fotosFinales: serieVacia(),
+    videosIniciales: [videoDemo("vi-b1", "bautista-video-ini", "2026-05-18", "Deglución y respiración")],
+    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
     radiografias: [
@@ -105,8 +119,17 @@ export const PACIENTES_DEMO: Paciente[] = [
     tecnica: "Placa de expansión tipo Haas + pistas indirectas Planas",
     montoTotal: "780000",
     condiciones:
-      "Incluye aparatología, controles cada 45 días y urgencias. No incluye estudios radiográficos ni la reparación por rotura del aparato. 12 cuotas sin interés.",
-    cuotas: cuotas(4, "Efectivo"),
+      "Incluye aparatología, controles cada 45 días y urgencias. No incluye estudios radiográficos ni la reparación por rotura del aparato. 8 cuotas sin interés.",
+    cuotas: cuotas(4, "Efectivo", 8),
+    mantenimiento: [
+      { id: "mt-b3", fecha: "2026-10-05", monto: "45000", efectuado: false },
+      { id: "mt-b2", fecha: "2026-09-05", monto: "38000", efectuado: true },
+      { id: "mt-b1", fecha: "2026-08-05", monto: "42000", efectuado: true },
+    ],
+    duracionEstimada: "2 años",
+    valorContencion: "",
+    valorAlta: "",
+    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-b3",
@@ -132,6 +155,7 @@ export const PACIENTES_DEMO: Paciente[] = [
     id: "pac-2",
     nombre: "Carla",
     apellido: "Domínguez",
+    mail: "carla.dominguez@example.com",
     dni: "38451902",
     ocupacion: "Contadora",
     edad: "27",
@@ -141,7 +165,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     anamnesis:
       "Bruxismo nocturno. Sin antecedentes quirúrgicos. Refiere chasquido en la ATM derecha al abrir, sin dolor.",
     obraSocial: "OSDE 210",
-    nroAfiliado: "62004518301",
     particularidades:
       "Trabaja en Buenos Aires y viaja a Tandil un fin de semana al mes: agendar los controles los viernes a la tarde. Se casa en noviembre de 2027 y quiere terminar antes.",
     derivadoPor: "Consulta espontánea (Instagram)",
@@ -149,6 +172,8 @@ export const PACIENTES_DEMO: Paciente[] = [
     fotosIniciales: serie("carla-ini"),
     fotosIntra: [],
     fotosFinales: serieVacia(),
+    videosIniciales: [],
+    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
     radiografias: [
@@ -168,8 +193,13 @@ export const PACIENTES_DEMO: Paciente[] = [
     tecnica: "Brackets de autoligado pasivo, prescripción Roth 0.022",
     montoTotal: "1450000",
     condiciones:
-      "Incluye colocación, controles mensuales, alambres y contención al finalizar. El reintegro de la obra social lo gestiona la paciente. Anticipo del 20% y 12 cuotas.",
-    cuotas: cuotas(1),
+      "Incluye colocación, controles mensuales, alambres y contención al finalizar. El reintegro de la obra social lo gestiona la paciente. Anticipo del 20% y 6 cuotas.",
+    cuotas: cuotas(1, "Transferencia", 6),
+    mantenimiento: [],
+    duracionEstimada: "18 meses",
+    valorContencion: "",
+    valorAlta: "",
+    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-c1",
@@ -182,6 +212,7 @@ export const PACIENTES_DEMO: Paciente[] = [
     id: "pac-3",
     nombre: "Martín",
     apellido: "Alsogaray",
+    mail: "martin.alsogaray@example.com",
     dni: "34207665",
     ocupacion: "Chef",
     edad: "34",
@@ -191,7 +222,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     anamnesis:
       "Periodontitis leve tratada en 2024, con alta del periodoncista. Fumador de 10 cigarrillos por día. Hipertensión controlada con medicación.",
     obraSocial: "Particular",
-    nroAfiliado: "",
     particularidades:
       "Trabaja de noche, prefiere turnos antes de las 11. Muy constante con los controles. Le interesa mucho ver el avance en fotos.",
     derivadoPor: "Dr. Ariel Souto (periodoncista)",
@@ -206,6 +236,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       { id: "fi-m6", url: fotoDemo("martin-intra-6", 480, 600), fecha: "2026-09-08", nota: "Detallado final. Se evalúa fecha de retiro." },
     ],
     fotosFinales: serie("martin-fin", 6),
+    videosIniciales: [],
+    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
     radiografias: [
@@ -243,8 +275,16 @@ export const PACIENTES_DEMO: Paciente[] = [
     tecnica: "Brackets metálicos MBT 0.022 + microtornillo de anclaje 1.5 x 8 mm",
     montoTotal: "1980000",
     condiciones:
-      "Incluye aparatología, microtornillo, controles mensuales y contención. Pago particular en 12 cuotas sin interés. Las urgencias fuera de horario se cobran aparte.",
-    cuotas: cuotas(9, "Efectivo"),
+      "Incluye aparatología, microtornillo, controles mensuales y contención. Pago particular en 8 cuotas sin interés. Las urgencias fuera de horario se cobran aparte.",
+    cuotas: cuotas(8, "Efectivo", 8),
+    mantenimiento: [
+      { id: "mt-m2", fecha: "2026-09-10", monto: "60000", efectuado: true },
+      { id: "mt-m1", fecha: "2026-08-10", monto: "55000", efectuado: true },
+    ],
+    duracionEstimada: "hasta 4 años",
+    valorContencion: "",
+    valorAlta: "",
+    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-m5",
@@ -277,6 +317,7 @@ export const PACIENTES_DEMO: Paciente[] = [
     id: "pac-4",
     nombre: "Julieta",
     apellido: "Fernández",
+    mail: "padres.fernandez@example.com",
     dni: "51336480",
     ocupacion: "Estudiante — 1.º año",
     edad: "12",
@@ -286,7 +327,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     anamnesis:
       "Deglución atípica con interposición lingual. Sin antecedentes relevantes. Alergia a la penicilina.",
     obraSocial: "",
-    nroAfiliado: "",
     particularidades:
       "Mamá: Sandra (2494-887766). Hermana de Bautista Fernández, vienen juntos a los controles cuando la familia está en Tandil. Toca el violín.",
     derivadoPor: "Derivación familiar",
@@ -294,6 +334,8 @@ export const PACIENTES_DEMO: Paciente[] = [
     fotosIniciales: serie("julieta-ini", 6),
     fotosIntra: [],
     fotosFinales: serieVacia(),
+    videosIniciales: [],
+    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
     radiografias: [],
@@ -305,6 +347,11 @@ export const PACIENTES_DEMO: Paciente[] = [
     montoTotal: "",
     condiciones: "",
     cuotas: cuotasVacias(),
+    mantenimiento: [],
+    duracionEstimada: "",
+    valorContencion: "",
+    valorAlta: "",
+    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-j1",
@@ -317,6 +364,7 @@ export const PACIENTES_DEMO: Paciente[] = [
     id: "pac-5",
     nombre: "Rocío",
     apellido: "Peralta",
+    mail: "rocio.peralta@example.com",
     dni: "29884310",
     ocupacion: "Docente",
     edad: "41",
@@ -326,7 +374,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     anamnesis:
       "Tratamiento de ortodoncia en la adolescencia, sin contención posterior. Sin antecedentes médicos de relevancia.",
     obraSocial: "IOMA",
-    nroAfiliado: "4-2288130-7",
     particularidades: "Terminó el tratamiento en 2025. Queda en control anual de contención.",
     derivadoPor: "Consulta espontánea",
     activo: false,
@@ -335,6 +382,8 @@ export const PACIENTES_DEMO: Paciente[] = [
       { id: "fi-r1", url: fotoDemo("rocio-intra-1", 480, 600), fecha: "2025-02-10", nota: "Control de alineación" },
     ],
     fotosFinales: serie("rocio-fin"),
+    videosIniciales: [],
+    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
     radiografias: [
@@ -354,7 +403,16 @@ export const PACIENTES_DEMO: Paciente[] = [
     montoTotal: "990000",
     condiciones:
       "Tratamiento finalizado y abonado en su totalidad. Control de contención anual sin cargo.",
-    cuotas: cuotas(12),
+    cuotas: cuotas(6, "Transferencia", 6),
+    mantenimiento: [
+      { id: "mt-r3", fecha: "2025-06-10", monto: "30000", efectuado: true },
+      { id: "mt-r2", fecha: "2025-05-10", monto: "30000", efectuado: true },
+      { id: "mt-r1", fecha: "2025-04-10", monto: "35000", efectuado: true },
+    ],
+    duracionEstimada: "1 año",
+    valorContencion: "85000",
+    valorAlta: "120000",
+    valorAltaFecha: "2025-07-22",
     seguimiento: [
       {
         id: "sg-r2",
@@ -368,6 +426,7 @@ export const PACIENTES_DEMO: Paciente[] = [
     id: "pac-6",
     nombre: "Malena",
     apellido: "Quiroga",
+    mail: "malena.quiroga@example.com",
     dni: "35120884",
     ocupacion: "",
     edad: "34",
@@ -376,7 +435,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     sede: "La Plata",
     anamnesis: "",
     obraSocial: "",
-    nroAfiliado: "",
     particularidades:
       "Sin alergias conocidas. Primera vez con relleno: pidió expresamente algo sutil, que no se note. Trabaja en un estudio jurídico, prefiere turnos a la tarde.",
     derivadoPor: "Consulta espontánea (Instagram)",
@@ -384,6 +442,8 @@ export const PACIENTES_DEMO: Paciente[] = [
     fotosIniciales: serieVacia(),
     fotosIntra: [],
     fotosFinales: serieVacia(),
+    videosIniciales: [],
+    videosFinales: [],
     fotosAntes: serieAF("malena-antes"),
     fotosDespues: serieAF("malena-despues", 2),
     radiografias: [],
@@ -396,10 +456,32 @@ export const PACIENTES_DEMO: Paciente[] = [
     montoTotal: "420000",
     condiciones:
       "Incluye las dos sesiones, el producto y el control posterior. Los retoques después de los 6 meses se presupuestan aparte.",
-    cuotas: cuotas(3),
+    cuotas: cuotas(3, "Transferencia", 4),
+    mantenimiento: [],
+    duracionEstimada: "",
+    valorContencion: "",
+    valorAlta: "",
+    valorAltaFecha: "",
     seguimiento: [],
   },
 ]
+
+/**
+ * Horarios de ejemplo. La Plata atiende todas las semanas; Tandil sólo los días
+ * puntuales que Florencia carga (acá, dos días que caen en la semana actual y la próxima).
+ */
+export function configAgendaDemo(): ConfigAgenda {
+  const lunes = lunesDe(new Date())
+  return {
+    bloques: [
+      { id: "bl-general", sede: "La Plata", dias: [1, 3, 4], desde: "14:00", hasta: "20:00", etiqueta: "Turnos generales" },
+      { id: "bl-lun", sede: "La Plata", dias: [1], desde: "11:00", hasta: "13:00", etiqueta: "Turnos especiales" },
+      { id: "bl-jue", sede: "La Plata", dias: [4], desde: "12:00", hasta: "13:00", etiqueta: "Turnos especiales" },
+      { id: "bl-tan-1", sede: "Tandil", dias: [], fecha: aISO(lunes), desde: "14:00", hasta: "19:00", etiqueta: "Visita a Tandil" },
+      { id: "bl-tan-2", sede: "Tandil", dias: [], fecha: aISO(sumarDias(lunes, 10)), desde: "14:00", hasta: "19:00", etiqueta: "Visita a Tandil" },
+    ],
+  }
+}
 
 /**
  * Turnos de ejemplo, relativos a la semana en que se abre la demo para que
@@ -411,6 +493,7 @@ export function turnosDemo(): Turno[] {
     sem: number,
     dia: number,
     hora: string,
+    duracion: number,
     pacienteId: string,
     sede: Turno["sede"],
     estado: Turno["estado"] = "ocupado"
@@ -420,22 +503,50 @@ export function turnosDemo(): Turno[] {
     sede,
     fecha: aISO(sumarDias(lunes, sem * 7 + dia)),
     hora,
+    duracion,
     estado,
   })
 
   return [
-    // Semana actual
-    t(0, 0, "14:00", "pac-1", "La Plata"),
-    t(0, 0, "16:00", "pac-2", "Tandil"),
-    t(0, 2, "15:30", "pac-3", "La Plata", "cancelado"),
-    t(0, 2, "14:30", "pac-4", "Tandil", "no-asistio"),
-    t(0, 3, "18:00", "pac-1", "La Plata"),
+    // Semana actual — el lunes mezcla 15, 30 y 45 minutos
+    t(0, 0, "11:00", 45, "pac-3", "La Plata"),
+    t(0, 0, "11:45", 15, "pac-4", "La Plata"),
+    t(0, 0, "14:00", 30, "pac-1", "La Plata"),
+    t(0, 0, "14:30", 15, "pac-6", "La Plata"),
+    t(0, 0, "14:45", 45, "pac-2", "La Plata"),
+    t(0, 0, "15:30", 30, "pac-5", "La Plata"),
+    t(0, 0, "16:15", 15, "pac-4", "La Plata", "no-asistio"),
+    t(0, 0, "16:00", 30, "pac-2", "Tandil"),
+    t(0, 2, "15:30", 30, "pac-3", "La Plata", "cancelado"),
+    t(0, 0, "14:30", 45, "pac-4", "Tandil", "no-asistio"),
+    t(0, 3, "12:00", 30, "pac-5", "La Plata"),
+    t(0, 3, "18:00", 30, "pac-1", "La Plata"),
     // Semana próxima
-    t(1, 0, "14:30", "pac-1", "La Plata"),
-    t(1, 0, "15:00", "pac-4", "Tandil"),
-    t(1, 2, "15:00", "pac-3", "La Plata"),
-    t(1, 2, "17:30", "pac-3", "La Plata", "cancelado"),
-    t(1, 3, "17:00", "pac-2", "Tandil"),
-    t(1, 3, "18:00", "pac-1", "La Plata"),
+    t(1, 0, "14:30", 30, "pac-1", "La Plata"),
+    t(1, 3, "15:00", 45, "pac-4", "Tandil"),
+    t(1, 2, "15:00", 15, "pac-3", "La Plata"),
+    t(1, 2, "17:30", 30, "pac-3", "La Plata", "cancelado"),
+    t(1, 3, "17:00", 45, "pac-2", "Tandil"),
+    t(1, 3, "18:00", 30, "pac-1", "La Plata"),
+  ]
+}
+
+/** Trámites de ejemplo: algunos pacientes figuran en las dos listas. */
+export function tramitesDemo(): Tramite[] {
+  const hace = (dias: number) => aISO(sumarDias(new Date(), -dias))
+  const tr = (id: string, pacienteId: string, tipo: Tramite["tipo"], dias: number): Tramite => ({
+    id,
+    pacienteId,
+    tipo,
+    agregado: hace(dias),
+    resuelto: false,
+  })
+  return [
+    tr("tra-1", "pac-2", "obra-social", 2),
+    tr("tra-2", "pac-3", "obra-social", 6),
+    tr("tra-3", "pac-5", "obra-social", 11),
+    tr("tra-4", "pac-1", "facturacion", 1),
+    tr("tra-5", "pac-3", "facturacion", 4),
+    tr("tra-6", "pac-5", "facturacion", 9),
   ]
 }

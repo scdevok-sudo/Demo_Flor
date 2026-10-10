@@ -12,6 +12,7 @@ import {
 import { Link, useParams } from "react-router-dom"
 
 import { FilaScroll } from "@/components/FilaScroll"
+import { AgregarATramites } from "@/components/ModalTramites"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -45,9 +46,11 @@ const SOLAPAS = [
 export function FichaPaciente() {
   const { id } = useParams()
   const paciente = usePaciente(id)
-  const { actualizarPaciente } = useFichero()
+  const { actualizarPaciente, cargandoPacientes, errorPacientes, recargarPacientes } = useFichero()
   const [solapa, setSolapa] = useState("datos")
 
+  if (!paciente && cargandoPacientes) return <p className="py-20 text-center text-sm text-muted-foreground">Cargando ficha…</p>
+  if (!paciente && errorPacientes) return <ErrorCarga mensaje={errorPacientes} reintentar={recargarPacientes} />
   if (!paciente) return <NoEncontrado />
 
   const actualizar = (cambios: Partial<Paciente>) => actualizarPaciente(paciente.id, cambios)
@@ -83,6 +86,7 @@ export function FichaPaciente() {
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
+            <AgregarATramites paciente={paciente} />
             <Badge variant={af ? "secondary" : "default"}>{paciente.categoria}</Badge>
             <Badge variant={paciente.activo ? "outline" : "ghost"}>
               {paciente.activo ? "Activo" : "Inactivo"}
@@ -108,7 +112,7 @@ export function FichaPaciente() {
         </FilaScroll>
 
         <TabsContent value="datos" className="pt-5">
-          <DatosGenerales paciente={paciente} actualizar={actualizar} />
+          <DatosGenerales key={paciente.id} paciente={paciente} />
         </TabsContent>
 
         <TabsContent value="fotos" className="pt-5">
@@ -139,6 +143,17 @@ export function FichaPaciente() {
           <ProximosTurnos paciente={paciente} />
         </TabsContent>
       </Tabs>
+    </div>
+  )
+}
+
+function ErrorCarga({ mensaje, reintentar }: { mensaje: string; reintentar: () => void }) {
+  return (
+    <div className="mx-auto max-w-sm py-20 text-center">
+      <h1 className="font-heading text-2xl text-brand-dark">{mensaje}</h1>
+      <Button className="mt-6 h-10" size="lg" onClick={reintentar}>
+        Reintentar
+      </Button>
     </div>
   )
 }

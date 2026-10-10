@@ -1,50 +1,60 @@
 import { useMemo, useState, type ReactNode } from "react"
-import { AlertTriangle, ChevronLeft, ChevronRight, Plus, Settings2 } from "lucide-react"
+import { AlertTriangle, ChevronLeft, ChevronRight, Settings2 } from "lucide-react"
 import { cn } from "cn"
 
 import { FilaScroll } from "@/components/FilaScroll"
 import { ModalConfigAgenda } from "@/components/ModalConfigAgenda"
 import { ModalTurno, type SlotElegido } from "@/components/ModalTurno"
 import { Button } from "@/components/ui/button"
-import { diasOrdenados, horariosDelDia } from "@/lib/agenda"
+import {
+  PASO_MIN,
+  aMinutos,
+  bloquesDelDia,
+  deMinutos,
+  finTurno,
+} from "@/lib/agenda"
 import { useFichero } from "@/lib/store"
-import { SEDES, type Paciente, type Sede, type Turno } from "@/lib/tipos"
+import { SEDES, type BloqueHorario, type Paciente, type Sede, type Turno } from "@/lib/tipos"
 import { DIAS_CORTO, DIAS_LARGO, aISO, diaMes, lunesDe, sumarDias } from "@/lib/util"
 
 /**
- * PENDIENTE DE CONFIRMAR CON LA CLIENTA: si el horario de atención es el mismo
- * en La Plata y Tandil o distinto por sede. Por ahora la configuración es una
- * sola y el selector de sede sólo separa los turnos. Si resulta que no hace
- * falta, se saca el selector y listo; si hace falta un horario por sede, la
- * config pasa a ser un Record<Sede, ConfigAgenda>.
+ * Cada sede tiene su propio horario: La Plata atiende todas las semanas
+ * (bloques por día de la semana) y Tandil sólo los días puntuales que ella carga.
  */
+
+/** Alto en píxeles de cada minuto de la línea de tiempo: un turno de 45 min es 3 veces uno de 15. */
+const PX_POR_MIN = 2
 
 function nombreCorto(p: Paciente | undefined): string {
   return p ? `${p.apellido}, ${p.nombre.charAt(0)}.` : "—"
 }
 
-interface CeldaProps {
-  turno: Turno | undefined
+function BloqueTurno({
+  turno,
+  paciente,
+  inicioBloque,
+  onClick,
+}: {
+  turno: Turno
   paciente: Paciente | undefined
-  hora: string
+  inicioBloque: number
   onClick: () => void
-  /** Lista (mobile) o celda de grilla (escritorio) */
-  variante: "lista" | "grilla"
-}
-
-function Celda({ turno, paciente, hora, onClick, variante }: CeldaProps) {
-  const estado = turno?.estado ?? "libre"
+}) {
+  const estado = turno.estado
+  const corto = turno.duracion < 30
 
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={`${hora} hs, ${estado === "libre" ? "libre" : `${estado}, ${nombreCorto(paciente)}`}`}
+      aria-label={`${turno.hora} hs, ${turno.duracion} minutos, ${estado}, ${nombreCorto(paciente)}`}
+      style={{
+        top: (aMinutos(turno.hora) - inicioBloque) * PX_POR_MIN + 1,
+        height: turno.duracion * PX_POR_MIN - 2,
+      }}
       className={cn(
-        "flex w-full items-center gap-2 rounded-lg border text-left text-sm transition-colors",
-        variante === "lista" ? "min-h-14 px-3.5 py-2.5" : "min-h-12 px-2.5 py-1.5",
-        estado === "libre" &&
-          "border-border bg-card text-muted-foreground hover:border-brand-coral hover:bg-brand-coral-soft",
+        "absolute right-1 left-11 z-10 flex overflow-hidden rounded-md border px-2 text-left text-xs transition-colors",
+        corto ? "items-center gap-1.5" : "flex-col justify-start gap-0.5 py-1",
         estado === "ocupado" && "border-brand-coral bg-brand-coral font-medium text-[#3A3F47] hover:brightness-95",
         estado === "cancelado" &&
           "border-border bg-muted text-muted-foreground italic line-through hover:bg-muted/70",
@@ -52,23 +62,106 @@ function Celda({ turno, paciente, hora, onClick, variante }: CeldaProps) {
           "border-brand-coral bg-card font-medium text-brand-dark hover:bg-brand-coral-soft"
       )}
     >
-      {variante === "lista" ? (
-        <span className="w-12 shrink-0 font-medium tabular-nums">{hora}</span>
-      ) : null}
-      <span className="min-w-0 flex-1 truncate">
-        {estado === "libre" ? (
-          <span className="inline-flex items-center gap-1 text-xs">
-            <Plus className="size-3.5" />
-            Libre
-          </span>
-        ) : (
-          nombreCorto(paciente)
-        )}
+      <span className="flex w-full min-w-0 items-center gap-1">
+        <span className="min-w-0 flex-1 truncate">{nombreCorto(paciente)}</span>
+        {estado === "no-asistio" ? (
+          <AlertTriangle className="size-3.5 shrink-0 text-brand-coral" aria-hidden />
+        ) : null}
       </span>
-      {estado === "no-asistio" ? (
-        <AlertTriangle className="size-4 shrink-0 text-brand-coral" aria-hidden />
-      ) : null}
+      <span className="shrink-0 text-[10px] font-normal tabular-nums opacity-80">
+        {corto ? turno.hora : `${turno.hora} – ${deMinutos(finTurno(turno))} · ${turno.duracion} min`}
+      </span>
     </button>
+  )
+}
+
+/**
+ * Un bloque horario como línea de tiempo continua: cada turno se posiciona por
+ * su hora de inicio y su alto es proporcional a la duración. Los huecos son
+ * botones de 15 minutos para crear un turno nuevo.
+ */
+function LineaDeTiempo({
+  bloque,
+  iso,
+  turnos,
+  pacientePorId,
+  onElegir,
+}: {
+  bloque: BloqueHorario
+  iso: string
+  turnos: Turno[]
+  pacientePorId: Map<string, Paciente>
+  onElegir: (slot: SlotElegido) => void
+}) {
+  const desde = aMinutos(bloque.desde)
+  const hasta = aMinutos(bloque.hasta)
+  const enBloque = turnos.filter((t) => {
+    const ini = aMinutos(t.hora)
+    return ini >= desde && ini < hasta
+  })
+
+  const huecos: number[] = []
+  for (let m = desde; m + PASO_MIN <= hasta; m += PASO_MIN) {
+    if (!enBloque.some((t) => m >= aMinutos(t.hora) && m < finTurno(t))) huecos.push(m)
+  }
+
+  const marcas: number[] = []
+  for (let m = desde; m < hasta; m += 30) marcas.push(m)
+
+  return (
+    <section aria-label={bloque.etiqueta || `${bloque.desde} a ${bloque.hasta}`} className="space-y-1.5">
+      <p className="flex items-baseline justify-between gap-2 text-xs">
+        <span className="min-w-0 truncate font-medium text-brand-dark">
+          {bloque.etiqueta || "Sin etiqueta"}
+        </span>
+        <span className="shrink-0 text-muted-foreground tabular-nums">
+          {bloque.desde}–{bloque.hasta}
+        </span>
+      </p>
+      <div
+        className="relative overflow-hidden rounded-lg border border-border bg-card"
+        style={{ height: (hasta - desde) * PX_POR_MIN }}
+      >
+        {marcas.map((m) => (
+          <div
+            key={m}
+            aria-hidden
+            className={cn(
+              "pointer-events-none absolute right-0 left-0 border-t",
+              m % 60 === 0 ? "border-border" : "border-border/50 border-dashed"
+            )}
+            style={{ top: (m - desde) * PX_POR_MIN }}
+          >
+            <span className="absolute top-0.5 left-1.5 text-[10px] text-muted-foreground tabular-nums">
+              {deMinutos(m)}
+            </span>
+          </div>
+        ))}
+
+        {huecos.map((m) => (
+          <button
+            key={m}
+            type="button"
+            aria-label={`Libre ${deMinutos(m)} hs`}
+            onClick={() => onElegir({ fecha: iso, hora: deMinutos(m) })}
+            style={{ top: (m - desde) * PX_POR_MIN, height: PASO_MIN * PX_POR_MIN }}
+            className="group absolute right-0 left-11 flex items-center rounded-sm px-2 text-[10px] text-transparent transition-colors hover:bg-brand-coral-soft hover:text-brand-dark focus-visible:bg-brand-coral-soft focus-visible:text-brand-dark"
+          >
+            + Turno {deMinutos(m)}
+          </button>
+        ))}
+
+        {enBloque.map((t) => (
+          <BloqueTurno
+            key={t.id}
+            turno={t}
+            paciente={pacientePorId.get(t.pacienteId)}
+            inicioBloque={desde}
+            onClick={() => onElegir({ fecha: iso, hora: t.hora })}
+          />
+        ))}
+      </div>
+    </section>
   )
 }
 
@@ -80,22 +173,17 @@ export function Agenda() {
   const [slot, setSlot] = useState<SlotElegido | null>(null)
   const [configAbierta, setConfigAbierta] = useState(false)
 
-  const horarios = useMemo(() => horariosDelDia(configAgenda), [configAgenda])
+  // Sólo los días de la semana en que la sede tiene algún bloque.
   const dias = useMemo(
     () =>
-      diasOrdenados(configAgenda).map((d) => {
-        const fecha = sumarDias(lunes, (d + 6) % 7)
-        return { dia: d, fecha, iso: aISO(fecha) }
-      }),
-    [configAgenda, lunes]
+      Array.from({ length: 7 }, (_, i) => {
+        const fecha = sumarDias(lunes, i)
+        return { dia: fecha.getDay(), fecha, iso: aISO(fecha) }
+      }).filter((d) => bloquesDelDia(configAgenda, sede, d.iso).length > 0),
+    [configAgenda, lunes, sede]
   )
 
-  const porSlot = useMemo(() => {
-    const m = new Map<string, Turno>()
-    for (const t of turnos) if (t.sede === sede) m.set(`${t.fecha}|${t.hora}`, t)
-    return m
-  }, [turnos, sede])
-
+  const turnosDeSede = useMemo(() => turnos.filter((t) => t.sede === sede), [turnos, sede])
   const pacientePorId = useMemo(() => new Map(pacientes.map((p) => [p.id, p])), [pacientes])
 
   const diaActivo = dias[Math.min(diaMobile, dias.length - 1)]
@@ -103,22 +191,29 @@ export function Agenda() {
   const rango = `${diaMes(lunes)} – ${diaMes(domingo)} ${domingo.getFullYear()}`
   const esSemanaActual = aISO(lunes) === aISO(lunesDe(new Date()))
 
-  const turnoSel = slot ? porSlot.get(`${slot.fecha}|${slot.hora}`) : undefined
-  const horasTomadas = new Set(
-    slot ? horarios.filter((h) => porSlot.has(`${slot.fecha}|${h}`)) : []
-  )
+  const turnoSel = slot
+    ? turnosDeSede.find((t) => t.fecha === slot.fecha && t.hora === slot.hora)
+    : undefined
 
-  const celda = (iso: string, hora: string, variante: CeldaProps["variante"]) => {
-    const turno = porSlot.get(`${iso}|${hora}`)
+  const semana = new Set(dias.map((d) => d.iso))
+  const cantidadSemana = turnosDeSede.filter((t) => semana.has(t.fecha)).length
+
+  /** Los bloques de un día, cada uno con su línea de tiempo. */
+  const bloquesDe = (iso: string): ReactNode => {
+    const delDia = turnosDeSede.filter((t) => t.fecha === iso)
     return (
-      <Celda
-        key={`${iso}-${hora}`}
-        turno={turno}
-        paciente={turno ? pacientePorId.get(turno.pacienteId) : undefined}
-        hora={hora}
-        variante={variante}
-        onClick={() => setSlot({ fecha: iso, hora })}
-      />
+      <div className="space-y-3">
+        {bloquesDelDia(configAgenda, sede, iso).map((b) => (
+          <LineaDeTiempo
+            key={b.id}
+            bloque={b}
+            iso={iso}
+            turnos={delDia}
+            pacientePorId={pacientePorId}
+            onElegir={setSlot}
+          />
+        ))}
+      </div>
     )
   }
 
@@ -128,7 +223,7 @@ export function Agenda() {
         <div>
           <h1 className="font-heading text-3xl text-brand-dark">Agenda</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Turnos de {sede} · {horarios.length} por día de atención
+            Turnos de {sede} · {cantidadSemana} {cantidadSemana === 1 ? "turno" : "turnos"} esta semana
           </p>
         </div>
         <Button variant="outline" size="lg" className="h-10" onClick={() => setConfigAbierta(true)}>
@@ -201,29 +296,31 @@ export function Agenda() {
         <Leyenda clase="border-brand-coral bg-card">No asistió</Leyenda>
       </ul>
 
-      {dias.length === 0 || horarios.length === 0 ? (
+      {dias.length === 0 ? (
         <div className="rounded-xl border border-border bg-card px-5 py-14 text-center">
-          <p className="font-heading text-lg text-brand-dark">No hay horarios configurados</p>
+          <p className="font-heading text-lg text-brand-dark">
+            {sede} no tiene días de atención esta semana
+          </p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Cargá los días desde «Configurar horarios».
+          </p>
         </div>
       ) : (
         <>
-          {/* Grilla semanal — escritorio */}
+          {/* Semana — escritorio */}
           <div className="hidden overflow-x-auto rounded-xl border border-border bg-card p-3 md:block">
             <div
-              className="grid gap-1.5"
-              style={{ gridTemplateColumns: `4rem repeat(${dias.length}, minmax(9rem, 1fr))` }}
+              className="grid items-start gap-3"
+              style={{ gridTemplateColumns: `repeat(${dias.length}, minmax(11rem, 1fr))` }}
             >
-              <div />
               {dias.map(({ dia, fecha, iso }) => (
-                <div key={iso} className="pb-1 text-center">
-                  <p className="text-sm font-medium text-brand-dark">{DIAS_LARGO[dia]}</p>
-                  <p className="text-xs text-muted-foreground">{diaMes(fecha)}</p>
+                <div key={iso} className="space-y-2">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-brand-dark">{DIAS_LARGO[dia]}</p>
+                    <p className="text-xs text-muted-foreground">{diaMes(fecha)}</p>
+                  </div>
+                  {bloquesDe(iso)}
                 </div>
-              ))}
-              {horarios.map((hora) => (
-                <FilaHora key={hora} hora={hora}>
-                  {dias.map(({ iso }) => celda(iso, hora, "grilla"))}
-                </FilaHora>
               ))}
             </div>
           </div>
@@ -254,39 +351,20 @@ export function Agenda() {
                 </div>
               </FilaScroll>
             </div>
-            <div className="space-y-2">
-              {horarios.map((hora) => celda(diaActivo.iso, hora, "lista"))}
-            </div>
+            {bloquesDe(diaActivo.iso)}
           </div>
         </>
       )}
 
-      <ModalTurno
-        slot={slot}
-        sede={sede}
-        turno={turnoSel}
-        horarios={horarios}
-        horasTomadas={horasTomadas}
-        onCerrar={() => setSlot(null)}
-      />
+      <ModalTurno slot={slot} sede={sede} turno={turnoSel} onCerrar={() => setSlot(null)} />
       <ModalConfigAgenda
         abierto={configAbierta}
+        sede={sede}
         config={configAgenda}
         onCerrar={() => setConfigAbierta(false)}
         onGuardar={setConfigAgenda}
       />
     </div>
-  )
-}
-
-function FilaHora({ hora, children }: { hora: string; children: ReactNode }) {
-  return (
-    <>
-      <div className="flex items-center justify-end pr-2 text-xs font-medium text-muted-foreground tabular-nums">
-        {hora}
-      </div>
-      {children}
-    </>
   )
 }
 

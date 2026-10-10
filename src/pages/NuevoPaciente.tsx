@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { useFichero } from "@/lib/store"
 import { pacienteVacio } from "@/lib/tipos"
+import { soloDigitos } from "@/lib/util"
 
 export function NuevoPaciente() {
-  const { agregarPaciente } = useFichero()
+  const { crearPaciente } = useFichero()
   const navigate = useNavigate()
   const [valores, setValores] = useState<DatosPaciente>(() => pacienteVacio())
 
@@ -17,13 +18,21 @@ export function NuevoPaciente() {
     setValores((prev) => ({ ...prev, [campo]: valor }))
   }
 
-  const listo = valores.nombre.trim() !== "" && valores.apellido.trim() !== ""
+  const [guardando, setGuardando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
-  function guardar(e: FormEvent) {
+  const listo =
+    valores.nombre.trim() !== "" && valores.apellido.trim() !== "" && soloDigitos(valores.dni) !== ""
+
+  async function guardar(e: FormEvent) {
     e.preventDefault()
-    if (!listo) return
-    const paciente = agregarPaciente(valores)
-    navigate(`/pacientes/${paciente.id}`)
+    if (!listo || guardando) return
+    setGuardando(true)
+    setError(null)
+    const r = await crearPaciente(valores)
+    setGuardando(false)
+    if (r.ok) navigate(`/pacientes/${r.paciente.id}`)
+    else setError(r.error)
   }
 
   return (
@@ -38,7 +47,7 @@ export function NuevoPaciente() {
         </Link>
         <h1 className="font-heading mt-2 text-3xl text-brand-dark">Nuevo paciente</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Con el nombre y el apellido alcanza para abrir la ficha. El resto lo vas completando
+          Con nombre, apellido y DNI alcanza para abrir la ficha. El resto lo vas completando
           cuando lo tengas.
         </p>
       </div>
@@ -50,6 +59,11 @@ export function NuevoPaciente() {
       </Card>
 
       <div className="flex flex-wrap items-center justify-end gap-3">
+        {error ? (
+          <p role="alert" className="mr-auto text-sm text-destructive">
+            {error}
+          </p>
+        ) : null}
         <Button
           variant="ghost"
           size="lg"
@@ -59,9 +73,9 @@ export function NuevoPaciente() {
         >
           Cancelar
         </Button>
-        <Button type="submit" size="lg" className="h-10" disabled={!listo}>
+        <Button type="submit" size="lg" className="h-10" disabled={!listo || guardando}>
           <Check className="size-4" />
-          Crear ficha
+          {guardando ? "Creando…" : "Crear ficha"}
         </Button>
       </div>
     </form>

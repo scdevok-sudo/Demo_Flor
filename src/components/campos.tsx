@@ -36,6 +36,7 @@ export function Campo({
 export interface Opcion {
   valor: string
   etiqueta?: string
+  deshabilitada?: boolean
 }
 
 export function SelectSimple({
@@ -63,7 +64,7 @@ export function SelectSimple({
       </SelectTrigger>
       <SelectContent>
         {items.map((o) => (
-          <SelectItem key={o.valor} value={o.valor}>
+          <SelectItem key={o.valor} value={o.valor} disabled={o.deshabilitada}>
             {o.etiqueta ?? o.valor}
           </SelectItem>
         ))}

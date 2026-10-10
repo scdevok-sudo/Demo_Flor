@@ -1,19 +1,24 @@
-import type { FormEvent } from "react"
+import { useState, type FormEvent } from "react"
 import { ArrowRight } from "lucide-react"
-import { useNavigate } from "react-router-dom"
 
 import { Campo } from "@/components/campos"
 import { Isotipo } from "@/components/marca"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useAuth } from "@/lib/auth"
 
 export function Login() {
-  const navigate = useNavigate()
+  const { ingresar } = useAuth()
+  const [email, setEmail] = useState("")
+  const [password, setPassword] = useState("")
+  const [error, setError] = useState<string | null>(null)
+  const [enviando, setEnviando] = useState(false)
 
-  /** Demo: no valida nada, entra directo al fichero. */
-  function ingresar(e: FormEvent) {
+  async function enviar(e: FormEvent) {
     e.preventDefault()
-    navigate("/pacientes")
+    setEnviando(true)
+    setError(await ingresar(email.trim(), password))
+    setEnviando(false)
   }
 
   return (
@@ -35,7 +40,7 @@ export function Login() {
       </div>
 
       <div className="flex flex-1 items-center justify-center px-6 py-12">
-        <form onSubmit={ingresar} className="w-full max-w-sm space-y-5">
+        <form onSubmit={enviar} className="w-full max-w-sm space-y-5">
           <div>
             <h2 className="font-heading text-2xl text-brand-dark">Ingresar</h2>
             <p className="mt-1 text-sm text-muted-foreground">
@@ -48,8 +53,9 @@ export function Login() {
               className="h-10"
               type="email"
               autoComplete="username"
-              placeholder="flor@consultorio.com"
-              defaultValue="flor@consultorio.com"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
             />
           </Campo>
 
@@ -58,19 +64,22 @@ export function Login() {
               className="h-10"
               type="password"
               autoComplete="current-password"
-              placeholder="••••••••"
-              defaultValue="demo1234"
+              required
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
             />
           </Campo>
 
-          <Button type="submit" size="lg" className="h-10 w-full">
-            Ingresar
+          <Button type="submit" size="lg" className="h-10 w-full" disabled={enviando}>
+            {enviando ? "Ingresando…" : "Ingresar"}
             <ArrowRight className="size-4" />
           </Button>
 
-          <p className="rounded-lg bg-muted px-3 py-2.5 text-center text-xs leading-relaxed text-muted-foreground">
-            Demo de presentación: el ingreso no valida credenciales.
-          </p>
+          {error && (
+            <p role="alert" className="rounded-lg bg-destructive/10 px-3 py-2.5 text-center text-xs text-destructive">
+              {error}
+            </p>
+          )}
         </form>
       </div>
     </div>

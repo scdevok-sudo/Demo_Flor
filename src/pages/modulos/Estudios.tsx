@@ -4,7 +4,8 @@ import { SelectSimple, TituloBloque } from "@/components/campos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import {
-  MAX_ARCHIVOS,
+  MAX_ESTUDIOS,
+  MAX_RADIOGRAFIAS,
   MOMENTOS,
   type Archivo,
   type MomentoEstudio,
@@ -25,6 +26,7 @@ function Bloque({
   formato,
   prefijoNombre,
   semilla,
+  max,
 }: {
   titulo: string
   descripcion: string
@@ -33,8 +35,9 @@ function Bloque({
   formato: Archivo["formato"]
   prefijoNombre: string
   semilla: string
+  max: number
 }) {
-  const lleno = archivos.length >= MAX_ARCHIVOS
+  const lleno = archivos.length >= max
 
   const agregar = () =>
     onCambio([
@@ -115,7 +118,7 @@ function Bloque({
         )}
 
         <p className="text-xs text-muted-foreground tabular-nums">
-          {archivos.length} de {MAX_ARCHIVOS} archivos
+          {archivos.length} de {max} archivos
         </p>
       </CardContent>
     </Card>
@@ -133,6 +136,7 @@ export function Estudios({ paciente, actualizar }: Props) {
         formato="imagen"
         prefijoNombre="radiografia"
         semilla={`${paciente.id}-rx`}
+        max={MAX_RADIOGRAFIAS}
       />
       <Bloque
         titulo="Estudios complementarios"
@@ -142,6 +146,7 @@ export function Estudios({ paciente, actualizar }: Props) {
         formato="pdf"
         prefijoNombre="estudio"
         semilla={`${paciente.id}-es`}
+        max={MAX_ESTUDIOS}
       />
     </div>
   )

@@ -2,6 +2,7 @@ import { useState } from "react"
 import { AlertTriangle, Ban, Pencil, RotateCcw, Trash2 } from "lucide-react"
 
 import { BuscadorPaciente } from "@/components/BuscadorPaciente"
+import { IconoWhatsApp } from "@/components/IconoWhatsApp"
 import { SelectSimple } from "@/components/campos"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -12,8 +13,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog"
+import {
+  PASO_MIN,
+  aMinutos,
+  bloqueEn,
+  deMinutos,
+  enlaceWhatsAppTurno,
+  espacioLibre,
+  finTurno,
+} from "@/lib/agenda"
 import { useFichero } from "@/lib/store"
-import { esArmonizacion, type EstadoTurno, type Sede, type Turno } from "@/lib/tipos"
+import { DURACIONES, esArmonizacion, type EstadoTurno, type Sede, type Turno } from "@/lib/tipos"
 import { fechaConDia, formatoDNI } from "@/lib/util"
 
 export interface SlotElegido {
@@ -25,10 +35,6 @@ interface Props {
   slot: SlotElegido | null
   sede: Sede
   turno: Turno | undefined
-  /** Horarios del día de la grilla, para poder mover el turno. */
-  horarios: string[]
-  /** Horas del mismo día/sede que ya están tomadas por otro turno. */
-  horasTomadas: Set<string>
   onCerrar: () => void
 }
 
@@ -38,7 +44,16 @@ const ETIQUETA_ESTADO: Record<EstadoTurno, string> = {
   "no-asistio": "No asistió",
 }
 
-export function ModalTurno({ slot, sede, turno, horarios, horasTomadas, onCerrar }: Props) {
+/** La duración más larga de la lista que entra en `libre` minutos, o la preferida si entra. */
+function duracionQueEntra(libre: number, preferida: number): number {
+  if (preferida <= libre) return preferida
+  return [...DURACIONES].reverse().find((d) => d <= libre) ?? 0
+}
+
+const opcionesDuracion = (hasta: number) =>
+  DURACIONES.filter((d) => d <= hasta).map((d) => ({ valor: String(d), etiqueta: `${d} min` }))
+
+export function ModalTurno({ slot, sede, turno, onCerrar }: Props) {
   return (
     <Dialog open={slot !== null} onOpenChange={(o) => (!o ? onCerrar() : undefined)}>
       <DialogContent className="max-h-[90svh] overflow-y-auto">
@@ -49,8 +64,6 @@ export function ModalTurno({ slot, sede, turno, horarios, horasTomadas, onCerrar
             slot={slot}
             sede={sede}
             turno={turno}
-            horarios={horarios}
-            horasTomadas={horasTomadas}
             onCerrar={onCerrar}
           />
         ) : null}
@@ -59,41 +72,80 @@ export function ModalTurno({ slot, sede, turno, horarios, horasTomadas, onCerrar
   )
 }
 
-function Contenido({
-  slot,
-  sede,
-  turno,
-  horarios,
-  horasTomadas,
-  onCerrar,
-}: Omit<Props, "slot"> & { slot: SlotElegido }) {
-  const { pacientes, agregarTurno, actualizarTurno, eliminarTurno } = useFichero()
+function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot: SlotElegido }) {
+  const { pacientes, turnos, configAgenda, agregarTurno, actualizarTurno, eliminarTurno } =
+    useFichero()
   const [editando, setEditando] = useState(false)
+  const [duracion, setDuracion] = useState(30)
 
   const paciente = turno ? pacientes.find((p) => p.id === turno.pacienteId) : undefined
+  const inicio = aMinutos(slot.hora)
+  const bloque = bloqueEn(configAgenda, sede, slot.fecha, inicio)
   const cuando = `${fechaConDia(slot.fecha)} · ${slot.hora} hs · ${sede}`
 
-  // Asignar un slot libre
+  // Asignar un horario libre: la duración se elige para este turno puntual.
   if (!turno) {
+    const libre = bloque ? espacioLibre(turnos, sede, slot.fecha, inicio, bloque) : 0
+    const opciones = opcionesDuracion(libre)
+    const duracionElegida = duracionQueEntra(libre, duracion)
+
     return (
       <>
         <DialogHeader>
           <DialogTitle className="font-heading text-xl text-brand-dark">Asignar turno</DialogTitle>
           <DialogDescription>{cuando}</DialogDescription>
         </DialogHeader>
-        <BuscadorPaciente
-          onElegir={(p) => {
-            agregarTurno({ pacienteId: p.id, sede, fecha: slot.fecha, hora: slot.hora, estado: "ocupado" })
-            onCerrar()
-          }}
-        />
+
+        {opciones.length === 0 ? (
+          <p role="alert" className="text-sm text-destructive">
+            No hay lugar a esa hora: se superpondría con otro turno o con el cierre del bloque.
+          </p>
+        ) : (
+          <>
+            <div className="space-y-1.5">
+              <p className="text-sm font-medium text-brand-dark">Duración</p>
+              <SelectSimple
+                valor={String(duracionElegida)}
+                onCambio={(v) => setDuracion(Number(v))}
+                opciones={opciones}
+              />
+              <p className="text-xs text-muted-foreground tabular-nums">
+                {slot.hora} – {deMinutos(inicio + duracionElegida)} hs · hay {libre} min libres desde
+                esa hora.
+              </p>
+            </div>
+            <BuscadorPaciente
+              onElegir={(p) => {
+                agregarTurno({
+                  pacienteId: p.id,
+                  sede,
+                  fecha: slot.fecha,
+                  hora: slot.hora,
+                  duracion: duracionElegida,
+                  estado: "ocupado",
+                })
+                onCerrar()
+              }}
+            />
+          </>
+        )}
       </>
     )
   }
 
-  // Cambiar de paciente o de horario
+  // Cambiar de paciente, de horario o de duración
   if (editando) {
-    const opcionesHora = horarios.filter((h) => h === turno.hora || !horasTomadas.has(h))
+    const bloqueTurno = bloqueEn(configAgenda, sede, slot.fecha, inicio)
+    const libreDesde = (min: number) =>
+      bloqueTurno ? espacioLibre(turnos, sede, slot.fecha, min, bloqueTurno, turno.id) : 0
+
+    const inicios: number[] = []
+    if (bloqueTurno) {
+      for (let m = aMinutos(bloqueTurno.desde); m + PASO_MIN <= aMinutos(bloqueTurno.hasta); m += PASO_MIN) {
+        if (libreDesde(m) >= PASO_MIN) inicios.push(m)
+      }
+    }
+
     return (
       <>
         <DialogHeader>
@@ -101,16 +153,30 @@ function Contenido({
           <DialogDescription>{cuando}</DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-1.5">
-          <p className="text-sm font-medium text-brand-dark">Horario</p>
-          <SelectSimple
-            valor={turno.hora}
-            onCambio={(h) => {
-              actualizarTurno(turno.id, { hora: h })
-              onCerrar()
-            }}
-            opciones={opcionesHora.map((h) => ({ valor: h, etiqueta: `${h} hs` }))}
-          />
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-brand-dark">Horario</p>
+            <SelectSimple
+              valor={turno.hora}
+              onCambio={(h) => {
+                const nuevaDuracion = duracionQueEntra(libreDesde(aMinutos(h)), turno.duracion)
+                actualizarTurno(turno.id, { hora: h, duracion: nuevaDuracion })
+                onCerrar()
+              }}
+              opciones={inicios.map((m) => ({ valor: deMinutos(m), etiqueta: `${deMinutos(m)} hs` }))}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <p className="text-sm font-medium text-brand-dark">Duración</p>
+            <SelectSimple
+              valor={String(turno.duracion)}
+              onCambio={(v) => {
+                actualizarTurno(turno.id, { duracion: Number(v) })
+                onCerrar()
+              }}
+              opciones={opcionesDuracion(libreDesde(inicio))}
+            />
+          </div>
         </div>
 
         <div className="space-y-1.5">
@@ -146,6 +212,9 @@ function Contenido({
         {paciente ? (
           <p className="text-sm text-muted-foreground tabular-nums">DNI {formatoDNI(paciente.dni)}</p>
         ) : null}
+        <p className="text-sm text-muted-foreground tabular-nums">
+          {turno.hora} – {deMinutos(finTurno(turno))} hs · {turno.duracion} min
+        </p>
         <div className="flex flex-wrap items-center gap-2 pt-1.5">
           {paciente ? (
             <Badge variant={esArmonizacion(paciente.categoria) ? "secondary" : "default"}>
@@ -163,6 +232,23 @@ function Contenido({
         </Button>
         {turno.estado === "ocupado" ? (
           <>
+            {paciente ? (
+              <Button
+                variant="outline"
+                className="h-11"
+                nativeButton={false}
+                render={
+                  <a
+                    href={enlaceWhatsAppTurno(paciente, turno)}
+                    target="_blank"
+                    rel="noreferrer noopener"
+                  />
+                }
+              >
+                <IconoWhatsApp className="size-4" />
+                Enviar por WhatsApp
+              </Button>
+            ) : null}
             <Button
               variant="outline"
               className="h-11"

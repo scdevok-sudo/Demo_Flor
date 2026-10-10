@@ -10,6 +10,7 @@ import {
   type Paciente,
   type Sede,
 } from "@/lib/tipos"
+import { edadDesde } from "@/lib/util"
 
 export type DatosPaciente = Omit<Paciente, "id">
 
@@ -18,16 +19,10 @@ export interface PropsForm {
   set: <K extends keyof DatosPaciente>(campo: K, valor: DatosPaciente[K]) => void
 }
 
-/** Edad cumplida a partir de la fecha de nacimiento. */
-function edadDesde(iso: string): string {
-  const nacimiento = new Date(iso)
-  if (Number.isNaN(nacimiento.getTime())) return ""
-  const hoy = new Date()
-  let edad = hoy.getFullYear() - nacimiento.getFullYear()
-  const mes = hoy.getMonth() - nacimiento.getMonth()
-  if (mes < 0 || (mes === 0 && hoy.getDate() < nacimiento.getDate())) edad -= 1
-  return edad >= 0 && edad < 120 ? String(edad) : ""
-}
+/** Armonización facial todavía no se puede dar de alta: aparece, pero deshabilitada. */
+const OPCIONES_CATEGORIA = CATEGORIAS.map((c) =>
+  esArmonizacion(c) ? { valor: c, etiqueta: `${c} · Próximamente`, deshabilitada: true } : { valor: c }
+)
 
 function SelectorCategoria({ valores, set }: PropsForm) {
   return (
@@ -35,7 +30,7 @@ function SelectorCategoria({ valores, set }: PropsForm) {
       <SelectSimple
         valor={valores.categoria}
         onCambio={(v) => set("categoria", v as Categoria)}
-        opciones={CATEGORIAS}
+        opciones={OPCIONES_CATEGORIA}
       />
     </Campo>
   )
@@ -61,7 +56,7 @@ function Activo({ valores, set, nota }: PropsForm & { nota: string }) {
 function FormArmonizacion({ valores, set }: PropsForm) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Campo etiqueta="Nombre">
           <Input
             className="h-9"
@@ -78,6 +73,16 @@ function FormArmonizacion({ valores, set }: PropsForm) {
             placeholder="Quiroga"
           />
         </Campo>
+        <Campo etiqueta="Mail" nota="Se usa para los trámites pendientes.">
+          <Input
+            className="h-9"
+            type="email"
+            inputMode="email"
+            value={valores.mail}
+            onChange={(e) => set("mail", e.target.value)}
+            placeholder="malena.quiroga@example.com"
+          />
+        </Campo>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -88,15 +93,6 @@ function FormArmonizacion({ valores, set }: PropsForm) {
             value={valores.dni}
             onChange={(e) => set("dni", e.target.value)}
             placeholder="35120884"
-          />
-        </Campo>
-        <Campo etiqueta="Edad">
-          <Input
-            className="h-9 tabular-nums"
-            inputMode="numeric"
-            value={valores.edad}
-            onChange={(e) => set("edad", e.target.value)}
-            placeholder="32"
           />
         </Campo>
         <SelectorCategoria valores={valores} set={set} />
@@ -148,7 +144,7 @@ export function FormDatosPaciente({ valores, set }: PropsForm) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <Campo etiqueta="Nombre">
           <Input
             className="h-9"
@@ -163,6 +159,16 @@ export function FormDatosPaciente({ valores, set }: PropsForm) {
             value={valores.apellido}
             onChange={(e) => set("apellido", e.target.value)}
             placeholder="Fernández"
+          />
+        </Campo>
+        <Campo etiqueta="Mail" nota="Se usa para los trámites pendientes.">
+          <Input
+            className="h-9"
+            type="email"
+            inputMode="email"
+            value={valores.mail}
+            onChange={(e) => set("mail", e.target.value)}
+            placeholder="familia.fernandez@example.com"
           />
         </Campo>
       </div>
@@ -182,20 +188,16 @@ export function FormDatosPaciente({ valores, set }: PropsForm) {
             className="h-9"
             type="date"
             value={valores.fechaNacimiento}
-            onChange={(e) => {
-              set("fechaNacimiento", e.target.value)
-              const edad = edadDesde(e.target.value)
-              if (edad) set("edad", edad)
-            }}
+            onChange={(e) => set("fechaNacimiento", e.target.value)}
           />
         </Campo>
-        <Campo etiqueta="Edad" nota="Se calcula sola, se puede corregir.">
+        <Campo etiqueta="Edad" nota="Se calcula con la fecha de nacimiento.">
           <Input
             className="h-9 tabular-nums"
-            inputMode="numeric"
-            value={valores.edad}
-            onChange={(e) => set("edad", e.target.value)}
-            placeholder="9"
+            readOnly
+            tabIndex={-1}
+            value={edadDesde(valores.fechaNacimiento)}
+            placeholder="—"
           />
         </Campo>
         <Campo etiqueta="Ocupación">
@@ -227,21 +229,13 @@ export function FormDatosPaciente({ valores, set }: PropsForm) {
         </Campo>
       </div>
 
-      <div className="grid gap-4 rounded-xl border border-dashed border-border bg-muted/40 p-4 sm:grid-cols-2">
+      <div className="rounded-xl border border-dashed border-border bg-muted/40 p-4">
         <Campo etiqueta="Obra social" nota="Si no tiene cobertura, escribí «Particular».">
           <Input
             className="h-9 bg-card"
             value={valores.obraSocial}
             onChange={(e) => set("obraSocial", e.target.value)}
             placeholder="OSDE 210 / Particular"
-          />
-        </Campo>
-        <Campo etiqueta="N.º de afiliado">
-          <Input
-            className="h-9 bg-card tabular-nums"
-            value={valores.nroAfiliado}
-            onChange={(e) => set("nroAfiliado", e.target.value)}
-            placeholder="62004518301"
           />
         </Campo>
       </div>

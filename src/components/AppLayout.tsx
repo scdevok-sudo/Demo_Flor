@@ -1,12 +1,14 @@
-import { CalendarDays, LogOut, UserPlus, Users } from "lucide-react"
-import { NavLink, Outlet, useNavigate } from "react-router-dom"
+import { CalendarDays, ClipboardCheck, LogOut, UserPlus, Users } from "lucide-react"
+import { NavLink, Outlet } from "react-router-dom"
 import { cn } from "cn"
 
 import { Firma, Isotipo } from "@/components/marca"
+import { useAuth } from "@/lib/auth"
 
 const NAV = [
   { a: "/pacientes", etiqueta: "Pacientes", icono: Users, exacto: true },
   { a: "/agenda", etiqueta: "Agenda", icono: CalendarDays, exacto: true },
+  { a: "/tramites", etiqueta: "Trámites", icono: ClipboardCheck, exacto: true },
   { a: "/pacientes/nuevo", etiqueta: "Nuevo paciente", icono: UserPlus, exacto: false },
 ]
 
@@ -20,7 +22,7 @@ function enlaceClases(activo: boolean) {
 }
 
 export function AppLayout() {
-  const navigate = useNavigate()
+  const { salir } = useAuth()
 
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
@@ -50,7 +52,7 @@ export function AppLayout() {
           </div>
           <button
             type="button"
-            onClick={() => navigate("/login")}
+            onClick={() => void salir()}
             className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
           >
             <LogOut className="size-4" />
@@ -80,9 +82,6 @@ export function AppLayout() {
       <main className="min-w-0 flex-1">
         <div className="mx-auto w-full max-w-6xl px-4 py-6 sm:px-6 md:py-10">
           <Outlet />
-          <p className="mt-12 border-t border-border pt-5 text-center text-xs text-muted-foreground">
-            Demo de presentación · los datos son de prueba y no se guardan al recargar la página.
-          </p>
         </div>
       </main>
     </div>

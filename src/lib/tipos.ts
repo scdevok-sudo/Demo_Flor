@@ -25,19 +25,19 @@ export function esArmonizacion(categoria: Categoria): boolean {
 
 /** Los 10 slots fijos de la serie fotográfica dental: 4 de cara + 6 de boca. */
 export const SLOTS_CARA = [
-  { id: "frente", etiqueta: "Frente" },
-  { id: "frente-sonriendo", etiqueta: "Frente sonriendo" },
-  { id: "perfil-derecho", etiqueta: "Perfil derecho" },
   { id: "perfil-izquierdo", etiqueta: "Perfil izquierdo" },
+  { id: "perfil-derecho", etiqueta: "Perfil derecho" },
+  { id: "tres-cuartos-sonrisa", etiqueta: "¾ perfil sonrisa" },
+  { id: "frente-sonriendo", etiqueta: "Frente sonriendo" },
 ] as const
 
 export const SLOTS_BOCA = [
-  { id: "boca-frontal", etiqueta: "Frontal" },
+  { id: "boca-frente", etiqueta: "Frente" },
   { id: "boca-lateral-derecha", etiqueta: "Lateral derecha" },
   { id: "boca-lateral-izquierda", etiqueta: "Lateral izquierda" },
   { id: "oclusal-superior", etiqueta: "Oclusal superior" },
   { id: "oclusal-inferior", etiqueta: "Oclusal inferior" },
-  { id: "sonrisa", etiqueta: "Sonrisa" },
+  { id: "overjet-inferior", etiqueta: "Overjet vista inferior" },
 ] as const
 
 export const SLOTS_SERIE = [...SLOTS_CARA, ...SLOTS_BOCA]
@@ -63,6 +63,8 @@ export interface FotoFechada {
   url: string
   fecha: string
   nota: string
+  /** Placeholder de video: se dibuja con un ícono de reproducción, no se reproduce. */
+  video?: boolean
 }
 
 export interface Archivo {
@@ -74,8 +76,19 @@ export interface Archivo {
 }
 
 export interface Cuota {
+  /** Número de cuota, desde 1 */
   mes: number
   medio: MedioPago
+  efectuado: boolean
+}
+
+/** Pago mensual de mantenimiento: el monto lo escribe Florencia a mano. */
+export interface RegistroMantenimiento {
+  id: string
+  /** AAAA-MM-DD */
+  fecha: string
+  /** En pesos, sólo dígitos */
+  monto: string
   efectuado: boolean
 }
 
@@ -95,15 +108,18 @@ export interface Paciente {
   fechaNacimiento: string
   categoria: Categoria
   sede: Sede
+  /** Se usa para vincular al paciente con los trámites pendientes. */
+  mail: string
   anamnesis: string
   obraSocial: string
-  nroAfiliado: string
   particularidades: string
   derivadoPor: string
   activo: boolean
   fotosIniciales: FotoSlot[]
   fotosIntra: FotoFechada[]
   fotosFinales: FotoSlot[]
+  videosIniciales: FotoFechada[]
+  videosFinales: FotoFechada[]
   /** Sólo armonización facial: 3 tomas previas al tratamiento. */
   fotosAntes: FotoSlot[]
   /** Sólo armonización facial: las mismas 3 tomas después. */
@@ -115,12 +131,23 @@ export interface Paciente {
   tecnica: string
   montoTotal: string
   condiciones: string
+  /** Cuotas iniciales: de 1 a MAX_CUOTAS, a pagar en PLAZO_CUOTAS_MESES meses. */
   cuotas: Cuota[]
+  mantenimiento: RegistroMantenimiento[]
+  /** Texto libre: «2 años», «hasta 4 años»… */
+  duracionEstimada: string
+  /** Vacío hasta que se sepa. */
+  valorContencion: string
+  valorAlta: string
+  valorAltaFecha: string
   seguimiento: EntradaSeguimiento[]
 }
 
-export const MAX_FOTOS_INTRA = 15
-export const MAX_ARCHIVOS = 4
+export const MAX_FOTOS_INTRA = 20
+export const MAX_RADIOGRAFIAS = 6
+export const MAX_ESTUDIOS = 4
+export const MAX_CUOTAS = 8
+export const PLAZO_CUOTAS_MESES = 6
 
 export function serieVacia(): FotoSlot[] {
   return SLOTS_SERIE.map((s) => ({ slot: s.id, url: null }))
@@ -130,8 +157,8 @@ export function serieAFVacia(): FotoSlot[] {
   return SLOTS_AF.map((s) => ({ slot: s.id, url: null }))
 }
 
-export function cuotasVacias(): Cuota[] {
-  return Array.from({ length: 12 }, (_, i) => ({
+export function cuotasVacias(cantidad = MAX_CUOTAS): Cuota[] {
+  return Array.from({ length: cantidad }, (_, i) => ({
     mes: i + 1,
     medio: "Transferencia" as MedioPago,
     efectuado: false,
@@ -148,6 +175,7 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
   return {
     nombre: "",
     apellido: "",
+    mail: "",
     dni: "",
     ocupacion: "",
     edad: "",
@@ -156,13 +184,14 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     sede: "La Plata",
     anamnesis: "",
     obraSocial: "",
-    nroAfiliado: "",
     particularidades: "",
     derivadoPor: "",
     activo: true,
     fotosIniciales: serieVacia(),
     fotosIntra: [],
     fotosFinales: serieVacia(),
+    videosIniciales: [],
+    videosFinales: [],
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
     radiografias: [],
@@ -173,6 +202,11 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     montoTotal: "",
     condiciones: "",
     cuotas: cuotasVacias(),
+    mantenimiento: [],
+    duracionEstimada: "",
+    valorContencion: "",
+    valorAlta: "",
+    valorAltaFecha: "",
     seguimiento: [],
   }
 }
@@ -188,24 +222,47 @@ export interface Turno {
   fecha: string
   /** HH:MM */
   hora: string
+  /** minutos; es por turno, no por bloque */
+  duracion: number
   estado: EstadoTurno
+}
+
+/**
+ * Un bloque de atención. Los bloques conviven (los extra no reemplazan al
+ * horario general). La etiqueta es texto libre, no una categoría del sistema.
+ */
+export interface BloqueHorario {
+  id: string
+  /** Cada sede tiene su propio horario. */
+  sede: Sede
+  /** Semanal (La Plata): 0 = domingo … 6 = sábado (igual que Date.getDay). Vacío si es una fecha puntual. */
+  dias: number[]
+  /** Fecha puntual AAAA-MM-DD (Tandil: unos pocos días al mes). Si está, `dias` no se usa. */
+  fecha?: string
+  desde: string
+  hasta: string
+  etiqueta: string
 }
 
 /** Horarios de atención. Se edita desde «Configurar horarios», no está fijo en el código. */
 export interface ConfigAgenda {
-  /** 0 = domingo … 6 = sábado (igual que Date.getDay) */
-  dias: number[]
-  desde: string
-  hasta: string
-  /** minutos por turno */
-  duracion: number
+  bloques: BloqueHorario[]
 }
 
 export const DURACIONES = [15, 20, 30, 45, 60]
 
-export const CONFIG_AGENDA_INICIAL: ConfigAgenda = {
-  dias: [1, 3, 4],
-  desde: "14:00",
-  hasta: "20:00",
-  duracion: 30,
+export type TipoTramite = "obra-social" | "facturacion"
+
+export const TIPOS_TRAMITE: { id: TipoTramite; etiqueta: string }[] = [
+  { id: "obra-social", etiqueta: "Trámites de obra social" },
+  { id: "facturacion", etiqueta: "Trámites de facturación" },
+]
+
+export interface Tramite {
+  id: string
+  pacienteId: string
+  tipo: TipoTramite
+  /** AAAA-MM-DD en que se agregó a la lista */
+  agregado: string
+  resuelto: boolean
 }

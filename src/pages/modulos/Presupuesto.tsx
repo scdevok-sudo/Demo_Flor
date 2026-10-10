@@ -1,7 +1,9 @@
-import { Download, Printer } from "lucide-react"
+import { useState } from "react"
+import { Download, Plus, Printer, Trash2 } from "lucide-react"
 import { cn } from "cn"
 
 import { Campo, DatoLeido, SelectSimple, TituloBloque } from "@/components/campos"
+import { IconoWhatsApp } from "@/components/IconoWhatsApp"
 import { Isotipo } from "@/components/marca"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
@@ -19,29 +21,57 @@ import {
 import { Textarea } from "@/components/ui/textarea"
 import { descargarPresupuesto, enlaceWhatsApp, imprimirPresupuesto } from "@/lib/pdf"
 import {
+  MAX_CUOTAS,
   MEDIOS_PAGO,
+  PLAZO_CUOTAS_MESES,
   esArmonizacion,
   type Cuota,
   type MedioPago,
   type Paciente,
+  type RegistroMantenimiento,
 } from "@/lib/tipos"
-import { formatoDNI, montoARS, nombreMes } from "@/lib/util"
+import { fechaLarga, formatoDNI, hoyISO, montoARS, nuevoId } from "@/lib/util"
+
+const soloNumeros = (v: string) => v.replace(/[^\d]/g, "")
+
+/** Campo de monto en pesos, sin puntos. */
+function InputMonto({
+  valor,
+  onCambio,
+  placeholder,
+  className,
+  etiqueta,
+}: {
+  valor: string
+  onCambio: (v: string) => void
+  placeholder?: string
+  className?: string
+  etiqueta?: string
+}) {
+  return (
+    <div className="relative">
+      <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
+        $
+      </span>
+      <Input
+        className={cn("h-10 pl-7 tabular-nums", className)}
+        inputMode="numeric"
+        aria-label={etiqueta}
+        value={valor}
+        onChange={(e) => onCambio(soloNumeros(e.target.value))}
+        placeholder={placeholder}
+      />
+    </div>
+  )
+}
 
 interface Props {
   paciente: Paciente
   actualizar: (cambios: Partial<Paciente>) => void
 }
 
-function IconoWhatsApp({ className }: { className?: string }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={className}>
-      <path d="M12.04 2c-5.46 0-9.91 4.45-9.91 9.91 0 1.75.46 3.45 1.32 4.95L2 22l5.25-1.38a9.9 9.9 0 0 0 4.79 1.22h.01c5.46 0 9.91-4.45 9.91-9.91 0-2.65-1.03-5.14-2.9-7.01A9.82 9.82 0 0 0 12.04 2Zm0 18.15h-.01a8.2 8.2 0 0 1-4.19-1.15l-.3-.18-3.12.82.83-3.04-.2-.31a8.2 8.2 0 0 1-1.26-4.38c0-4.54 3.7-8.23 8.25-8.23 2.2 0 4.27.86 5.83 2.41a8.19 8.19 0 0 1 2.41 5.83c0 4.54-3.7 8.23-8.24 8.23Zm4.52-6.16c-.25-.12-1.47-.72-1.69-.81-.23-.08-.39-.12-.56.13-.16.24-.64.8-.79.97-.14.16-.29.18-.54.06-.25-.13-1.05-.39-1.99-1.23-.74-.66-1.24-1.47-1.38-1.72-.15-.25-.02-.38.11-.5.11-.11.25-.29.37-.43.13-.15.17-.25.25-.41.08-.17.04-.31-.02-.43-.06-.12-.56-1.34-.76-1.84-.2-.48-.41-.42-.56-.43h-.48c-.17 0-.43.06-.66.31-.23.25-.86.85-.86 2.07 0 1.22.89 2.4 1.01 2.56.12.17 1.75 2.67 4.23 3.74.59.26 1.05.41 1.41.52.59.19 1.13.16 1.56.1.47-.07 1.47-.6 1.67-1.18.21-.58.21-1.07.15-1.18-.06-.11-.23-.17-.48-.29Z" />
-    </svg>
-  )
-}
-
 /**
- * Cuota en mobile: card de un solo renglón, para que las 12 se recorran de un
+ * Cuota en mobile: card de un solo renglón, para que todas se recorran de un
  * vistazo. Las cobradas se tiñen de coral, así el estado se lee sin leer.
  * No va envuelta en un <label> a propósito: el tilde se comería los clics del
  * selector de medio de pago.
@@ -61,10 +91,7 @@ function FilaCuota({
       )}
     >
       <p className="min-w-0 flex-1 text-sm font-medium text-brand-dark">
-        <span className="tabular-nums">{cuota.mes}</span>
-        <span className="ml-1.5 text-xs font-normal text-muted-foreground capitalize">
-          {nombreMes(cuota.mes)}
-        </span>
+        Cuota <span className="tabular-nums">{cuota.mes}</span>
       </p>
       <SelectSimple
         className="w-30 shrink-0 bg-card"
@@ -85,9 +112,18 @@ export function Presupuesto({ paciente, actualizar }: Props) {
   const cuotas = paciente.cuotas
   const pagas = cuotas.filter((c) => c.efectuado).length
   const total = Number(paciente.montoTotal) || 0
-  const valorCuota = total / 12
+  const valorCuota = cuotas.length > 0 ? total / cuotas.length : 0
   const cobrado = valorCuota * pagas
   const af = esArmonizacion(paciente.categoria)
+
+  const cambiarCantidad = (n: number) =>
+    actualizar({
+      cuotas: Array.from(
+        { length: n },
+        (_, i): Cuota =>
+          cuotas[i] ?? { mes: i + 1, medio: "Transferencia", efectuado: false }
+      ),
+    })
 
   const setCuota = (mes: number, cambios: Partial<Cuota>) =>
     actualizar({ cuotas: cuotas.map((c) => (c.mes === mes ? { ...c, ...cambios } : c)) })
@@ -147,7 +183,11 @@ export function Presupuesto({ paciente, actualizar }: Props) {
           <div className="grid gap-4 sm:grid-cols-[minmax(0,15rem)_1fr]">
             <Campo
               etiqueta="Monto total"
-              nota={total > 0 ? `12 cuotas de ${montoARS(valorCuota)}` : "En pesos, sin puntos."}
+              nota={
+                total > 0 && cuotas.length > 0
+                  ? `${cuotas.length} cuotas de ${montoARS(valorCuota)}`
+                  : "En pesos, sin puntos."
+              }
             >
               <div className="relative">
                 <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-sm text-muted-foreground">
@@ -219,12 +259,12 @@ export function Presupuesto({ paciente, actualizar }: Props) {
       <Card>
         <CardContent className="space-y-4 pt-6">
           <TituloBloque
-            titulo="Control de cuotas"
-            descripcion="12 meses. Marcá cada una cuando la cobres."
+            titulo="Cuotas iniciales"
+            descripcion={`Hasta ${MAX_CUOTAS} cuotas, a pagar en ${PLAZO_CUOTAS_MESES} meses. Marcá cada una cuando la cobres.`}
             accion={
               <div className="text-right">
                 <p className="text-sm font-semibold text-brand-dark tabular-nums">
-                  {pagas} de 12 cobradas
+                  {pagas} de {cuotas.length} cobradas
                 </p>
                 <p className="text-xs text-muted-foreground tabular-nums">
                   {montoARS(cobrado)} de {montoARS(total)}
@@ -232,6 +272,17 @@ export function Presupuesto({ paciente, actualizar }: Props) {
               </div>
             }
           />
+
+          <Campo etiqueta="Cantidad de cuotas" className="max-w-48">
+            <SelectSimple
+              valor={String(cuotas.length)}
+              onCambio={(v) => cambiarCantidad(Number(v))}
+              opciones={Array.from({ length: MAX_CUOTAS }, (_, i) => ({
+                valor: String(i + 1),
+                etiqueta: i === 0 ? "1 cuota" : `${i + 1} cuotas`,
+              }))}
+            />
+          </Campo>
 
           {/* Tabla — escritorio */}
           <div className="hidden overflow-hidden rounded-xl border border-border md:block">
@@ -247,9 +298,8 @@ export function Presupuesto({ paciente, actualizar }: Props) {
                 {cuotas.map((c) => (
                   <TableRow key={c.mes} className="hover:bg-transparent">
                     <TableCell className="py-2.5 pl-4">
-                      <span className="font-medium text-brand-dark tabular-nums">{c.mes}</span>
-                      <span className="ml-2 text-xs text-muted-foreground capitalize">
-                        {nombreMes(c.mes)}
+                      <span className="font-medium text-brand-dark">
+                        Cuota <span className="tabular-nums">{c.mes}</span>
                       </span>
                     </TableCell>
                     <TableCell className="py-2.5">
@@ -293,6 +343,184 @@ export function Presupuesto({ paciente, actualizar }: Props) {
           </div>
         </CardContent>
       </Card>
+
+      <Mantenimiento paciente={paciente} actualizar={actualizar} />
+      <CierreTratamiento paciente={paciente} actualizar={actualizar} />
     </div>
+  )
+}
+
+/**
+ * Mantenimiento mensual: mismo patrón de alta que el seguimiento diario (el
+ * registro nuevo queda arriba, sin límite). El monto lo escribe Florencia cada
+ * vez; no hay fórmula ni descuento automático.
+ */
+function Mantenimiento({ paciente, actualizar }: Props) {
+  const [fecha, setFecha] = useState(hoyISO())
+  const [monto, setMonto] = useState("")
+
+  const registros = [...paciente.mantenimiento].sort((a, b) => b.fecha.localeCompare(a.fecha))
+
+  const cambiar = (id: string, cambios: Partial<RegistroMantenimiento>) =>
+    actualizar({
+      mantenimiento: paciente.mantenimiento.map((r) => (r.id === id ? { ...r, ...cambios } : r)),
+    })
+
+  function agregar() {
+    if (!monto || !fecha) return
+    actualizar({
+      mantenimiento: [
+        { id: nuevoId("mt"), fecha, monto, efectuado: false },
+        ...paciente.mantenimiento,
+      ],
+    })
+    setMonto("")
+    setFecha(hoyISO())
+  }
+
+  return (
+    <Card>
+      <CardContent className="space-y-5 pt-6">
+        <TituloBloque
+          titulo="Mantenimiento del tratamiento"
+          descripcion={`Desde el mes ${PLAZO_CUOTAS_MESES}, una vez terminadas las cuotas iniciales. El monto lo cargás vos, mes a mes.`}
+          accion={
+            <span className="text-xs font-medium text-muted-foreground tabular-nums">
+              {registros.length} {registros.length === 1 ? "registro" : "registros"}
+            </span>
+          }
+        />
+
+        <Campo
+          etiqueta="Duración estimada del tratamiento"
+          nota="Texto libre: «2 años», «18 meses», «hasta 4 años»."
+          className="max-w-sm"
+        >
+          <Input
+            className="h-10"
+            value={paciente.duracionEstimada}
+            onChange={(e) => actualizar({ duracionEstimada: e.target.value })}
+            placeholder="2 años"
+          />
+        </Campo>
+
+        <div className="grid gap-4 border-t border-border pt-5 sm:grid-cols-[minmax(0,11rem)_minmax(0,12rem)_auto] sm:items-end">
+          <Campo etiqueta="Fecha">
+            <Input
+              className="h-10"
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+            />
+          </Campo>
+          <Campo etiqueta="Monto">
+            <InputMonto valor={monto} onCambio={setMonto} placeholder="45000" etiqueta="Monto" />
+          </Campo>
+          <Button
+            type="button"
+            size="lg"
+            className="h-11 sm:h-10"
+            disabled={!monto || !fecha}
+            onClick={agregar}
+          >
+            <Plus className="size-4" />
+            Agregar registro
+          </Button>
+        </div>
+
+        {registros.length === 0 ? (
+          <div className="rounded-xl border border-dashed border-input bg-muted/40 px-5 py-9 text-center text-sm text-muted-foreground">
+            Todavía no hay registros de mantenimiento.
+          </div>
+        ) : (
+          <ul className="space-y-2">
+            {registros.map((r) => (
+              <li
+                key={r.id}
+                className={cn(
+                  "flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border px-3 py-2.5 transition-colors",
+                  r.efectuado
+                    ? "border-brand-coral/50 bg-brand-coral-soft/60"
+                    : "border-border bg-card"
+                )}
+              >
+                <p className="min-w-0 flex-1 basis-40 text-sm font-medium text-brand-dark">
+                  {fechaLarga(r.fecha)}
+                </p>
+                <div className="w-36 shrink-0">
+                  <InputMonto
+                    className="h-9 bg-card"
+                    valor={r.monto}
+                    onCambio={(v) => cambiar(r.id, { monto: v })}
+                    etiqueta={`Monto del ${fechaLarga(r.fecha)}`}
+                  />
+                </div>
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={r.efectuado}
+                    onCheckedChange={(v: boolean) => cambiar(r.id, { efectuado: v })}
+                  />
+                  <span
+                    className={r.efectuado ? "font-medium text-brand-dark" : "text-muted-foreground"}
+                  >
+                    {r.efectuado ? "Efectuado" : "Pendiente"}
+                  </span>
+                </label>
+                <button
+                  type="button"
+                  onClick={() =>
+                    actualizar({ mantenimiento: paciente.mantenimiento.filter((x) => x.id !== r.id) })
+                  }
+                  aria-label={`Borrar registro del ${fechaLarga(r.fecha)}`}
+                  className="rounded-lg p-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-destructive md:p-2"
+                >
+                  <Trash2 className="size-5 md:size-4" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Cierre: valor de la contención (editable, puede quedar vacío) y valor de alta (un único registro con fecha). */
+function CierreTratamiento({ paciente, actualizar }: Props) {
+  return (
+    <Card>
+      <CardContent className="space-y-4 pt-6">
+        <TituloBloque
+          titulo="Cierre del tratamiento"
+          descripcion="Se completa cuando se sabe. Pueden quedar vacíos mientras el tratamiento sigue en curso."
+        />
+        <div className="grid gap-4 sm:grid-cols-[minmax(0,15rem)_minmax(0,11rem)_minmax(0,12rem)]">
+          <Campo etiqueta="Valor de contención" nota="Dispositivo para después del alta.">
+            <InputMonto
+              valor={paciente.valorContencion}
+              onCambio={(valorContencion) => actualizar({ valorContencion })}
+              placeholder="85000"
+              etiqueta="Valor de contención"
+            />
+          </Campo>
+          <Campo etiqueta="Fecha del alta">
+            <Input
+              className="h-10"
+              type="date"
+              value={paciente.valorAltaFecha}
+              onChange={(e) => actualizar({ valorAltaFecha: e.target.value })}
+            />
+          </Campo>
+          <Campo etiqueta="Valor de alta" nota="Un único valor final.">
+            <InputMonto
+              valor={paciente.valorAlta}
+              onCambio={(valorAlta) => actualizar({ valorAlta })}
+              placeholder="120000"
+              etiqueta="Valor de alta"
+            />
+          </Campo>
+        </div>
+      </CardContent>
+    </Card>
   )
 }

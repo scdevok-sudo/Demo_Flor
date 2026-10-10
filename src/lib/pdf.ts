@@ -1,7 +1,7 @@
 import type { jsPDF } from "jspdf"
 
 import { esArmonizacion, type Paciente } from "@/lib/tipos"
-import { fechaLarga, formatoDNI, hoyISO, montoARS, nombreMes } from "@/lib/util"
+import { fechaLarga, formatoDNI, hoyISO, montoARS } from "@/lib/util"
 
 /** Colores de marca en RGB, para jsPDF. */
 const OSCURO: [number, number, number] = [67, 73, 82] // #434952
@@ -192,7 +192,7 @@ export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(8)
     doc.setTextColor(...OSCURO)
-    doc.text(`${pagas} de 12 cuotas abonadas`, ANCHO - MARGEN - 8, y + 16, { align: "right" })
+    doc.text(`${pagas} de ${p.cuotas.length} cuotas abonadas`, ANCHO - MARGEN - 8, y + 16, { align: "right" })
   }
   y += 34
 
@@ -201,10 +201,10 @@ export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
   parrafo(p.condiciones)
 
   // ---- Plan de pagos ------------------------------------------------------
-  // Tres columnas de 4 para que las 12 cuotas entren en una sola página.
-  if (total > 0) {
+  // Columnas de 4 cuotas (hasta 8: dos columnas) para que entren en una sola página.
+  if (total > 0 && p.cuotas.length > 0) {
     const filas = 4
-    const anchoCol = UTIL / 3
+    const anchoCol = UTIL / Math.max(2, Math.ceil(p.cuotas.length / filas))
     // Se reserva el bloque entero antes del título, para que no quede huérfano.
     espacio(16 + filas * 5.4 + 4)
     titulo("Plan de pagos")
@@ -219,7 +219,7 @@ export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
       if (cuota.efectuado) doc.setTextColor(50, 54, 60)
       else doc.setTextColor(...MEDIO)
       doc.text(
-        `${cuota.mes}. ${nombreMes(cuota.mes)} · ${cuota.medio} · ${
+        `Cuota ${cuota.mes} · ${cuota.medio} · ${
           cuota.efectuado ? "abonada" : "pendiente"
         }`,
         x,
