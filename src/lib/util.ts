@@ -52,8 +52,9 @@ export function montoARS(valor: string | number): string {
 
 /** Edad cumplida a partir de la fecha de nacimiento (AAAA-MM-DD). */
 export function edadDesde(iso: string): string {
-  const nacimiento = new Date(iso)
-  if (!iso || Number.isNaN(nacimiento.getTime())) return ""
+  // deISO (hora local): new Date("AAAA-MM-DD") parsea en UTC y en Argentina corre el día.
+  const nacimiento = iso ? deISO(iso) : new Date(NaN)
+  if (Number.isNaN(nacimiento.getTime())) return ""
   const hoy = new Date()
   let edad = hoy.getFullYear() - nacimiento.getFullYear()
   const mes = hoy.getMonth() - nacimiento.getMonth()
