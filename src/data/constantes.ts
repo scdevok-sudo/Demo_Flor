@@ -99,3 +99,48 @@ export const COLUMNAS_SEGUIMIENTO = {
   texto: "texto",
   createdAt: "created_at",
 } as const
+
+export const TABLA_BLOQUES = "bloques_horarios"
+
+export const COLUMNAS_BLOQUES = {
+  id: "id",
+  sede: "sede",
+  dias: "dias",
+  horaDesde: "hora_desde",
+  horaHasta: "hora_hasta",
+  etiqueta: "etiqueta",
+} as const
+
+export const TABLA_JORNADAS = "jornadas_tandil"
+
+export const COLUMNAS_JORNADAS = {
+  id: "id",
+  fecha: "fecha",
+  horaDesde: "hora_desde",
+  horaHasta: "hora_hasta",
+  etiqueta: "etiqueta",
+} as const
+
+export const TABLA_TURNOS = "turnos"
+
+export const COLUMNAS_TURNOS = {
+  id: "id",
+  pacienteId: "paciente_id",
+  sede: "sede",
+  fecha: "fecha",
+  horaInicio: "hora_inicio",
+  duracion: "duracion_minutos",
+  estado: "estado",
+  updatedAt: "updated_at",
+} as const
+
+export const TABLA_TRAMITES = "tramites"
+
+export const COLUMNAS_TRAMITES = {
+  id: "id",
+  pacienteId: "paciente_id",
+  tipo: "tipo",
+  estado: "estado",
+  fechaAgregado: "fecha_agregado",
+  fechaResuelto: "fecha_resuelto",
+} as const

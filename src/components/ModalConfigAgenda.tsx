@@ -30,15 +30,19 @@ interface Props {
   sede: Sede
   config: ConfigAgenda
   onCerrar: () => void
-  onGuardar: (config: ConfigAgenda) => void
+  /** Devuelve si se guardó; si no, el diálogo queda abierto mostrando `error`. */
+  onGuardar: (config: ConfigAgenda) => Promise<boolean>
+  error: string | null
 }
 
-export function ModalConfigAgenda({ abierto, sede, config, onCerrar, onGuardar }: Props) {
+export function ModalConfigAgenda({ abierto, sede, config, onCerrar, onGuardar, error }: Props) {
   return (
     <Dialog open={abierto} onOpenChange={(o) => (!o ? onCerrar() : undefined)}>
       <DialogContent className="max-h-[90svh] overflow-y-auto sm:max-w-xl">
         {/* Se monta de nuevo cada vez que se abre, así el borrador parte de la config vigente. */}
-        {abierto ? <Formulario sede={sede} config={config} onCerrar={onCerrar} onGuardar={onGuardar} /> : null}
+        {abierto ? (
+          <Formulario sede={sede} config={config} onCerrar={onCerrar} onGuardar={onGuardar} errorGuardado={error} />
+        ) : null}
       </DialogContent>
     </Dialog>
   )
@@ -55,7 +59,14 @@ function errorDe(bloques: BloqueHorario[], propios: BloqueHorario[], puntual: bo
   return bloquesSuperpuestos(bloques)
 }
 
-function Formulario({ sede, config, onCerrar, onGuardar }: Omit<Props, "abierto">) {
+function Formulario({
+  sede,
+  config,
+  onCerrar,
+  onGuardar,
+  errorGuardado,
+}: Omit<Props, "abierto" | "error"> & { errorGuardado: string | null }) {
+  const [guardando, setGuardando] = useState(false)
   // Se edita la lista completa, pero sólo se muestran los bloques de la sede elegida.
   const [bloques, setBloques] = useState(config.bloques)
   const puntual = sede === "Tandil"
@@ -192,9 +203,9 @@ function Formulario({ sede, config, onCerrar, onGuardar }: Omit<Props, "abierto"
           {puntual ? "Agregar día de atención" : "Agregar bloque"}
         </Button>
 
-        {error ? (
+        {error ?? errorGuardado ? (
           <p role="alert" className="text-sm text-destructive">
-            {error}
+            {error ?? errorGuardado}
           </p>
         ) : null}
       </div>
@@ -205,13 +216,15 @@ function Formulario({ sede, config, onCerrar, onGuardar }: Omit<Props, "abierto"
         </Button>
         <Button
           className="h-11 sm:h-9"
-          disabled={error !== null}
-          onClick={() => {
-            onGuardar({ bloques })
-            onCerrar()
+          disabled={error !== null || guardando}
+          onClick={async () => {
+            setGuardando(true)
+            const ok = await onGuardar({ bloques })
+            setGuardando(false)
+            if (ok) onCerrar()
           }}
         >
-          Guardar
+          {guardando ? "Guardando…" : "Guardar"}
         </Button>
       </DialogFooter>
     </>

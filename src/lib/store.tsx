@@ -2,14 +2,12 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 
 import * as datosPacientes from "@/data/pacientes"
 import type { DatosPersistidos } from "@/data/pacientes"
-import { PACIENTES_DEMO, configAgendaDemo, tramitesDemo, turnosDemo } from "@/lib/datos"
+import { PACIENTES_DEMO, tramitesDemo } from "@/lib/datos"
 import {
   pacienteVacio,
-  type ConfigAgenda,
   type Paciente,
   type TipoTramite,
   type Tramite,
-  type Turno,
 } from "@/lib/tipos"
 import { edadDesde, hoyISO, nuevoId } from "@/lib/util"
 
@@ -60,12 +58,6 @@ interface Fichero {
    * sólo en memoria hasta que se conecte cada uno.
    */
   actualizarPaciente: (id: string, cambios: Partial<Paciente>) => void
-  turnos: Turno[]
-  agregarTurno: (datos: Omit<Turno, "id">) => void
-  actualizarTurno: (id: string, cambios: Partial<Turno>) => void
-  eliminarTurno: (id: string) => void
-  configAgenda: ConfigAgenda
-  setConfigAgenda: (config: ConfigAgenda) => void
   tramites: Tramite[]
   /** Suma al paciente a cada lista elegida, salvo que ya esté pendiente en ella. */
   agregarATramites: (pacienteId: string, tipos: TipoTramite[]) => void
@@ -78,11 +70,7 @@ export function FicheroProvider({ children }: { children: ReactNode }) {
   const [pacientes, dispatch] = useReducer(reducer, USAR_SEED ? PACIENTES_DEMO : [])
   const [cargandoPacientes, setCargandoPacientes] = useState(!USAR_SEED)
   const [errorPacientes, setErrorPacientes] = useState<string | null>(null)
-  const [turnos, setTurnos] = useState<Turno[]>(USAR_SEED ? turnosDemo : [])
   const [tramites, setTramites] = useState<Tramite[]>(USAR_SEED ? tramitesDemo : [])
-  const [configAgenda, setConfigAgenda] = useState<ConfigAgenda>(
-    USAR_SEED ? configAgendaDemo : { bloques: [] }
-  )
 
   const traerPacientes = useCallback(() => {
     void datosPacientes.listar().then((r) => {
@@ -135,13 +123,6 @@ export function FicheroProvider({ children }: { children: ReactNode }) {
         return { ok: true, paciente: r.valor }
       },
       actualizarPaciente: (id, cambios) => dispatch({ tipo: "actualizar", id, cambios }),
-      turnos,
-      agregarTurno: (datos) => setTurnos((ts) => [...ts, { ...datos, id: nuevoId("tur") }]),
-      actualizarTurno: (id, cambios) =>
-        setTurnos((ts) => ts.map((t) => (t.id === id ? { ...t, ...cambios } : t))),
-      eliminarTurno: (id) => setTurnos((ts) => ts.filter((t) => t.id !== id)),
-      configAgenda,
-      setConfigAgenda,
       tramites,
       agregarATramites: (pacienteId, tipos) =>
         setTramites((ts) => [
@@ -153,7 +134,7 @@ export function FicheroProvider({ children }: { children: ReactNode }) {
       marcarTramite: (id, resuelto) =>
         setTramites((ts) => ts.map((t) => (t.id === id ? { ...t, resuelto } : t))),
     }),
-    [pacientes, cargandoPacientes, errorPacientes, recargarPacientes, turnos, configAgenda, tramites]
+    [pacientes, cargandoPacientes, errorPacientes, recargarPacientes, tramites]
   )
 
   return <FicheroContext.Provider value={valor}>{children}</FicheroContext.Provider>

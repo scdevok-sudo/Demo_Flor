@@ -1,29 +1,27 @@
+import { useEffect, useState } from "react"
 import { CalendarDays } from "lucide-react"
 import { Link } from "react-router-dom"
 
 import { TituloBloque } from "@/components/campos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { useFichero } from "@/lib/store"
-import type { Paciente } from "@/lib/tipos"
+import * as datos from "@/data/agenda"
+import type { Paciente, Turno } from "@/lib/tipos"
 import { aISO, fechaConDia } from "@/lib/util"
 
 /** Turnos futuros del paciente, tomados de la agenda. Sólo lectura. */
 export function ProximosTurnos({ paciente }: { paciente: Paciente }) {
-  const { turnos } = useFichero()
+  const [proximos, setProximos] = useState<Turno[] | null>(null)
+  const [error, setError] = useState<string | null>(null)
 
-  const ahora = new Date()
-  const hoy = aISO(ahora)
-  const horaAhora = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
-
-  const proximos = turnos
-    .filter(
-      (t) =>
-        t.pacienteId === paciente.id &&
-        t.estado === "ocupado" &&
-        (t.fecha > hoy || (t.fecha === hoy && t.hora >= horaAhora))
-    )
-    .sort((a, b) => `${a.fecha}${a.hora}`.localeCompare(`${b.fecha}${b.hora}`))
+  useEffect(() => {
+    const ahora = new Date()
+    const hora = `${String(ahora.getHours()).padStart(2, "0")}:${String(ahora.getMinutes()).padStart(2, "0")}`
+    void datos.proximosDe(paciente.id, aISO(ahora), hora).then((r) => {
+      if (r.ok) setProximos(r.valor)
+      else setError(r.error)
+    })
+  }, [paciente.id])
 
   return (
     <Card>
@@ -33,7 +31,11 @@ export function ProximosTurnos({ paciente }: { paciente: Paciente }) {
           descripcion="Los turnos se cargan desde la agenda."
         />
 
-        {proximos.length === 0 ? (
+        {error ? (
+          <p role="alert" className="text-sm text-destructive">{error}</p>
+        ) : proximos === null ? (
+          <p className="py-6 text-center text-sm text-muted-foreground">Cargando turnos…</p>
+        ) : proximos.length === 0 ? (
           <div className="rounded-lg border border-dashed border-border px-4 py-10 text-center">
             <p className="text-sm text-muted-foreground">Este paciente no tiene turnos próximos.</p>
             <Button

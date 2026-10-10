@@ -22,6 +22,7 @@ import {
   espacioLibre,
   finTurno,
 } from "@/lib/agenda"
+import type { EstadoAgenda } from "@/data/useAgenda"
 import { useFichero } from "@/lib/store"
 import { DURACIONES, esArmonizacion, type EstadoTurno, type Sede, type Turno } from "@/lib/tipos"
 import { fechaConDia, formatoDNI } from "@/lib/util"
@@ -35,6 +36,7 @@ interface Props {
   slot: SlotElegido | null
   sede: Sede
   turno: Turno | undefined
+  agenda: EstadoAgenda
   onCerrar: () => void
 }
 
@@ -53,7 +55,7 @@ function duracionQueEntra(libre: number, preferida: number): number {
 const opcionesDuracion = (hasta: number) =>
   DURACIONES.filter((d) => d <= hasta).map((d) => ({ valor: String(d), etiqueta: `${d} min` }))
 
-export function ModalTurno({ slot, sede, turno, onCerrar }: Props) {
+export function ModalTurno({ slot, sede, turno, agenda, onCerrar }: Props) {
   return (
     <Dialog open={slot !== null} onOpenChange={(o) => (!o ? onCerrar() : undefined)}>
       <DialogContent className="max-h-[90svh] overflow-y-auto">
@@ -64,6 +66,7 @@ export function ModalTurno({ slot, sede, turno, onCerrar }: Props) {
             slot={slot}
             sede={sede}
             turno={turno}
+            agenda={agenda}
             onCerrar={onCerrar}
           />
         ) : null}
@@ -72,9 +75,16 @@ export function ModalTurno({ slot, sede, turno, onCerrar }: Props) {
   )
 }
 
-function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot: SlotElegido }) {
-  const { pacientes, turnos, configAgenda, agregarTurno, actualizarTurno, eliminarTurno } =
-    useFichero()
+function Contenido({ slot, sede, turno, agenda, onCerrar }: Omit<Props, "slot"> & { slot: SlotElegido }) {
+  const { pacientes } = useFichero()
+  const { turnos, config: configAgenda, agregarTurno, actualizarTurno, eliminarTurno } = agenda
+  /** Cierra el diálogo sólo si la escritura salió bien; si no, el error se ve acá. */
+  const cerrarSiOk = async (escritura: Promise<boolean>) => {
+    if (await escritura) onCerrar()
+  }
+  const errorEscritura = agenda.error ? (
+    <p role="alert" className="text-sm text-destructive">{agenda.error}</p>
+  ) : null
   const [editando, setEditando] = useState(false)
   const [duracion, setDuracion] = useState(30)
 
@@ -115,18 +125,20 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
               </p>
             </div>
             <BuscadorPaciente
-              onElegir={(p) => {
-                agregarTurno({
-                  pacienteId: p.id,
-                  sede,
-                  fecha: slot.fecha,
-                  hora: slot.hora,
-                  duracion: duracionElegida,
-                  estado: "ocupado",
-                })
-                onCerrar()
-              }}
+              onElegir={(p) =>
+                void cerrarSiOk(
+                  agregarTurno({
+                    pacienteId: p.id,
+                    sede,
+                    fecha: slot.fecha,
+                    hora: slot.hora,
+                    duracion: duracionElegida,
+                    estado: "ocupado",
+                  })
+                )
+              }
             />
+            {errorEscritura}
           </>
         )}
       </>
@@ -160,8 +172,7 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
               valor={turno.hora}
               onCambio={(h) => {
                 const nuevaDuracion = duracionQueEntra(libreDesde(aMinutos(h)), turno.duracion)
-                actualizarTurno(turno.id, { hora: h, duracion: nuevaDuracion })
-                onCerrar()
+                void cerrarSiOk(actualizarTurno(turno.id, { hora: h, duracion: nuevaDuracion }))
               }}
               opciones={inicios.map((m) => ({ valor: deMinutos(m), etiqueta: `${deMinutos(m)} hs` }))}
             />
@@ -171,8 +182,7 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
             <SelectSimple
               valor={String(turno.duracion)}
               onCambio={(v) => {
-                actualizarTurno(turno.id, { duracion: Number(v) })
-                onCerrar()
+                void cerrarSiOk(actualizarTurno(turno.id, { duracion: Number(v) }))
               }}
               opciones={opcionesDuracion(libreDesde(inicio))}
             />
@@ -183,12 +193,10 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
           <p className="text-sm font-medium text-brand-dark">Paciente</p>
           <BuscadorPaciente
             seleccionadoId={turno.pacienteId}
-            onElegir={(p) => {
-              actualizarTurno(turno.id, { pacienteId: p.id })
-              onCerrar()
-            }}
+            onElegir={(p) => void cerrarSiOk(actualizarTurno(turno.id, { pacienteId: p.id }))}
           />
         </div>
+        {errorEscritura}
 
         <Button variant="outline" className="h-11" onClick={() => setEditando(false)}>
           Volver
@@ -253,8 +261,7 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
               variant="outline"
               className="h-11"
               onClick={() => {
-                actualizarTurno(turno.id, { estado: "no-asistio" })
-                onCerrar()
+                void cerrarSiOk(actualizarTurno(turno.id, { estado: "no-asistio" }))
               }}
             >
               <AlertTriangle className="size-4" />
@@ -264,8 +271,7 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
               variant="destructive"
               className="h-11 sm:col-span-2"
               onClick={() => {
-                actualizarTurno(turno.id, { estado: "cancelado" })
-                onCerrar()
+                void cerrarSiOk(actualizarTurno(turno.id, { estado: "cancelado" }))
               }}
             >
               <Ban className="size-4" />
@@ -278,8 +284,7 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
               variant="outline"
               className="h-11"
               onClick={() => {
-                actualizarTurno(turno.id, { estado: "ocupado" })
-                onCerrar()
+                void cerrarSiOk(actualizarTurno(turno.id, { estado: "ocupado" }))
               }}
             >
               <RotateCcw className="size-4" />
@@ -289,8 +294,7 @@ function Contenido({ slot, sede, turno, onCerrar }: Omit<Props, "slot"> & { slot
               variant="destructive"
               className="h-11 sm:col-span-2"
               onClick={() => {
-                eliminarTurno(turno.id)
-                onCerrar()
+                void cerrarSiOk(eliminarTurno(turno.id))
               }}
             >
               <Trash2 className="size-4" />

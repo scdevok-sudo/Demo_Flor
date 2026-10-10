@@ -13,6 +13,7 @@ import {
   deMinutos,
   finTurno,
 } from "@/lib/agenda"
+import { useAgenda } from "@/data/useAgenda"
 import { useFichero } from "@/lib/store"
 import { SEDES, type BloqueHorario, type Paciente, type Sede, type Turno } from "@/lib/tipos"
 import { DIAS_CORTO, DIAS_LARGO, aISO, diaMes, lunesDe, sumarDias } from "@/lib/util"
@@ -166,9 +167,11 @@ function LineaDeTiempo({
 }
 
 export function Agenda() {
-  const { turnos, pacientes, configAgenda, setConfigAgenda } = useFichero()
+  const { pacientes } = useFichero()
   const [sede, setSede] = useState<Sede>("La Plata")
   const [lunes, setLunes] = useState(() => lunesDe(new Date()))
+  const agenda = useAgenda(aISO(lunes), aISO(sumarDias(lunes, 6)))
+  const { turnos, config: configAgenda } = agenda
   const [diaMobile, setDiaMobile] = useState(0)
   const [slot, setSlot] = useState<SlotElegido | null>(null)
   const [configAbierta, setConfigAbierta] = useState(false)
@@ -296,7 +299,13 @@ export function Agenda() {
         <Leyenda clase="border-brand-coral bg-card">No asistió</Leyenda>
       </ul>
 
-      {dias.length === 0 ? (
+      {agenda.error && !slot && !configAbierta ? (
+        <p role="alert" className="text-sm text-destructive">{agenda.error}</p>
+      ) : null}
+
+      {agenda.cargando ? (
+        <p className="py-12 text-center text-sm text-muted-foreground">Cargando agenda…</p>
+      ) : dias.length === 0 ? (
         <div className="rounded-xl border border-border bg-card px-5 py-14 text-center">
           <p className="font-heading text-lg text-brand-dark">
             {sede} no tiene días de atención esta semana
@@ -356,13 +365,20 @@ export function Agenda() {
         </>
       )}
 
-      <ModalTurno slot={slot} sede={sede} turno={turnoSel} onCerrar={() => setSlot(null)} />
+      <ModalTurno
+        slot={slot}
+        sede={sede}
+        turno={turnoSel}
+        agenda={agenda}
+        onCerrar={() => setSlot(null)}
+      />
       <ModalConfigAgenda
         abierto={configAbierta}
         sede={sede}
         config={configAgenda}
         onCerrar={() => setConfigAbierta(false)}
-        onGuardar={setConfigAgenda}
+        error={agenda.error}
+        onGuardar={agenda.guardarConfig}
       />
     </div>
   )

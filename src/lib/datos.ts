@@ -2,12 +2,10 @@ import {
   SLOTS_AF,
   serieAFVacia,
   type FotoSlot,
-  type ConfigAgenda,
   type Paciente,
   type Tramite,
-  type Turno,
 } from "@/lib/tipos"
-import { aISO, fotoDemo, lunesDe, sumarDias } from "@/lib/util"
+import { aISO, fotoDemo, sumarDias } from "@/lib/util"
 
 /** Las 3 tomas de armonizacion facial, con las primeras `cuantos` cargadas. */
 function serieAF(semilla: string, cuantos: number = SLOTS_AF.length): FotoSlot[] {
@@ -143,71 +141,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     fotosDespues: serieAF("malena-despues", 2),
   },
 ]
-
-/**
- * Horarios de ejemplo. La Plata atiende todas las semanas; Tandil sólo los días
- * puntuales que Florencia carga (acá, dos días que caen en la semana actual y la próxima).
- */
-export function configAgendaDemo(): ConfigAgenda {
-  const lunes = lunesDe(new Date())
-  return {
-    bloques: [
-      { id: "bl-general", sede: "La Plata", dias: [1, 3, 4], desde: "14:00", hasta: "20:00", etiqueta: "Turnos generales" },
-      { id: "bl-lun", sede: "La Plata", dias: [1], desde: "11:00", hasta: "13:00", etiqueta: "Turnos especiales" },
-      { id: "bl-jue", sede: "La Plata", dias: [4], desde: "12:00", hasta: "13:00", etiqueta: "Turnos especiales" },
-      { id: "bl-tan-1", sede: "Tandil", dias: [], fecha: aISO(lunes), desde: "14:00", hasta: "19:00", etiqueta: "Visita a Tandil" },
-      { id: "bl-tan-2", sede: "Tandil", dias: [], fecha: aISO(sumarDias(lunes, 10)), desde: "14:00", hasta: "19:00", etiqueta: "Visita a Tandil" },
-    ],
-  }
-}
-
-/**
- * Turnos de ejemplo, relativos a la semana en que se abre la demo para que
- * la agenda nunca arranque vacía. Lun/Mié/Jue = offsets 0/2/3 desde el lunes.
- */
-export function turnosDemo(): Turno[] {
-  const lunes = lunesDe(new Date())
-  const t = (
-    sem: number,
-    dia: number,
-    hora: string,
-    duracion: number,
-    pacienteId: string,
-    sede: Turno["sede"],
-    estado: Turno["estado"] = "ocupado"
-  ): Turno => ({
-    id: `tur-${sem}-${dia}-${hora}-${sede}`,
-    pacienteId,
-    sede,
-    fecha: aISO(sumarDias(lunes, sem * 7 + dia)),
-    hora,
-    duracion,
-    estado,
-  })
-
-  return [
-    // Semana actual — el lunes mezcla 15, 30 y 45 minutos
-    t(0, 0, "11:00", 45, "pac-3", "La Plata"),
-    t(0, 0, "11:45", 15, "pac-4", "La Plata"),
-    t(0, 0, "14:00", 30, "pac-1", "La Plata"),
-    t(0, 0, "14:30", 15, "pac-6", "La Plata"),
-    t(0, 0, "14:45", 45, "pac-2", "La Plata"),
-    t(0, 0, "15:30", 30, "pac-5", "La Plata"),
-    t(0, 0, "16:15", 15, "pac-4", "La Plata", "no-asistio"),
-    t(0, 0, "16:00", 30, "pac-2", "Tandil"),
-    t(0, 2, "15:30", 30, "pac-3", "La Plata", "cancelado"),
-    t(0, 0, "14:30", 45, "pac-4", "Tandil", "no-asistio"),
-    t(0, 3, "12:00", 30, "pac-5", "La Plata"),
-    t(0, 3, "18:00", 30, "pac-1", "La Plata"),
-    // Semana próxima
-    t(1, 0, "14:30", 30, "pac-1", "La Plata"),
-    t(1, 3, "15:00", 45, "pac-4", "Tandil"),
-    t(1, 2, "15:00", 15, "pac-3", "La Plata"),
-    t(1, 2, "17:30", 30, "pac-3", "La Plata", "cancelado"),
-    t(1, 3, "17:00", 45, "pac-2", "Tandil"),
-    t(1, 3, "18:00", 30, "pac-1", "La Plata"),
-  ]
-}
 
 /** Trámites de ejemplo: algunos pacientes figuran en las dos listas. */
 export function tramitesDemo(): Tramite[] {
