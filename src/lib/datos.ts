@@ -1,8 +1,6 @@
 import {
   SLOTS_AF,
-  cuotasVacias,
   serieAFVacia,
-  type Cuota,
   type FotoSlot,
   type ConfigAgenda,
   type Paciente,
@@ -16,19 +14,6 @@ function serieAF(semilla: string, cuantos: number = SLOTS_AF.length): FotoSlot[]
   return SLOTS_AF.map((s, i) => ({
     slot: s.id,
     url: i < cuantos ? fotoDemo(`${semilla}-${s.id}`) : null,
-  }))
-}
-
-/** Marca como efectuadas las primeras `pagas` cuotas. */
-function cuotas(
-  pagas: number,
-  medio: Cuota["medio"] = "Transferencia",
-  cantidad = 8
-): Cuota[] {
-  return cuotasVacias(cantidad).map((c) => ({
-    ...c,
-    medio,
-    efectuado: c.mes <= pagas,
   }))
 }
 
@@ -53,24 +38,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    diagnostico:
-      "Clase II esquelética por retrusión mandibular. Mordida cruzada posterior bilateral con compresión del maxilar superior. Hábito de respiración bucal.",
-    plan:
-      "Fase 1 de ortopedia funcional: expansión del maxilar superior y avance mandibular. Reeducación de la respiración con fonoaudiología. Control cada 45 días. Reevaluación a los 12 meses para definir la fase 2.",
-    tecnica: "Placa de expansión tipo Haas + pistas indirectas Planas",
-    montoTotal: "780000",
-    condiciones:
-      "Incluye aparatología, controles cada 45 días y urgencias. No incluye estudios radiográficos ni la reparación por rotura del aparato. 8 cuotas sin interés.",
-    cuotas: cuotas(4, "Efectivo", 8),
-    mantenimiento: [
-      { id: "mt-b3", fecha: "2026-10-05", monto: "45000", efectuado: false },
-      { id: "mt-b2", fecha: "2026-09-05", monto: "38000", efectuado: true },
-      { id: "mt-b1", fecha: "2026-08-05", monto: "42000", efectuado: true },
-    ],
-    duracionEstimada: "2 años",
-    valorContencion: "",
-    valorAlta: "",
-    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-b3",
@@ -112,20 +79,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    diagnostico:
-      "Clase I molar y canina. Apiñamiento anteroinferior severo, con 8 mm de discrepancia. Desvío de línea media inferior de 2 mm a la izquierda. Bruxismo.",
-    plan:
-      "Ortodoncia fija superior e inferior sin extracciones, con desgaste interproximal en el sector anteroinferior. Duración estimada de 18 meses. Contención fija inferior y placa removible superior al finalizar.",
-    tecnica: "Brackets de autoligado pasivo, prescripción Roth 0.022",
-    montoTotal: "1450000",
-    condiciones:
-      "Incluye colocación, controles mensuales, alambres y contención al finalizar. El reintegro de la obra social lo gestiona la paciente. Anticipo del 20% y 6 cuotas.",
-    cuotas: cuotas(1, "Transferencia", 6),
-    mantenimiento: [],
-    duracionEstimada: "18 meses",
-    valorContencion: "",
-    valorAlta: "",
-    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-c1",
@@ -154,23 +107,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    diagnostico:
-      "Clase II división 1, subdivisión derecha. Resalte aumentado de 6 mm. Ausencia de la pieza 46 con migración mesial de la 47. Soporte periodontal reducido, estable.",
-    plan:
-      "Ortodoncia fija con anclaje esquelético (microtornillo en el sector posterior derecho) para verticalizar la pieza 47 y cerrar el espacio. Fuerzas livianas por el soporte periodontal reducido. Duración estimada de 20 meses. Contención fija superior e inferior.",
-    tecnica: "Brackets metálicos MBT 0.022 + microtornillo de anclaje 1.5 x 8 mm",
-    montoTotal: "1980000",
-    condiciones:
-      "Incluye aparatología, microtornillo, controles mensuales y contención. Pago particular en 8 cuotas sin interés. Las urgencias fuera de horario se cobran aparte.",
-    cuotas: cuotas(8, "Efectivo", 8),
-    mantenimiento: [
-      { id: "mt-m2", fecha: "2026-09-10", monto: "60000", efectuado: true },
-      { id: "mt-m1", fecha: "2026-08-10", monto: "55000", efectuado: true },
-    ],
-    duracionEstimada: "hasta 4 años",
-    valorContencion: "",
-    valorAlta: "",
-    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-m5",
@@ -219,18 +155,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    diagnostico:
-      "Mordida abierta anterior por hábito de interposición lingual. Dentición mixta, segunda fase.",
-    plan: "Rejilla lingual fija y terapia miofuncional. Reevaluación a los 8 meses.",
-    tecnica: "Rejilla lingual soldada a bandas en molares superiores",
-    montoTotal: "",
-    condiciones: "",
-    cuotas: cuotasVacias(),
-    mantenimiento: [],
-    duracionEstimada: "",
-    valorContencion: "",
-    valorAlta: "",
-    valorAltaFecha: "",
     seguimiento: [
       {
         id: "sg-j1",
@@ -258,23 +182,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: false,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    diagnostico: "Recidiva de apiñamiento anteroinferior posterior al tratamiento, por falta de contención.",
-    plan:
-      "Realineación con alineadores removibles. Contención fija definitiva de la 33 a la 43. Finalizado en julio de 2025.",
-    tecnica: "Alineadores removibles — 14 etapas",
-    montoTotal: "990000",
-    condiciones:
-      "Tratamiento finalizado y abonado en su totalidad. Control de contención anual sin cargo.",
-    cuotas: cuotas(6, "Transferencia", 6),
-    mantenimiento: [
-      { id: "mt-r3", fecha: "2025-06-10", monto: "30000", efectuado: true },
-      { id: "mt-r2", fecha: "2025-05-10", monto: "30000", efectuado: true },
-      { id: "mt-r1", fecha: "2025-04-10", monto: "35000", efectuado: true },
-    ],
-    duracionEstimada: "1 año",
-    valorContencion: "85000",
-    valorAlta: "120000",
-    valorAltaFecha: "2025-07-22",
     seguimiento: [
       {
         id: "sg-r2",
@@ -303,20 +210,6 @@ export const PACIENTES_DEMO: Paciente[] = [
     activo: true,
     fotosAntes: serieAF("malena-antes"),
     fotosDespues: serieAF("malena-despues", 2),
-    diagnostico:
-      "Pérdida de volumen en el tercio medio. Surcos nasogenianos marcados y leve descenso de la cola de la ceja.",
-    plan:
-      "Relleno con ácido hialurónico en pómulos y surcos nasogenianos, en dos sesiones separadas por 30 días. Control de resultado al mes de la segunda.",
-    tecnica: "",
-    montoTotal: "420000",
-    condiciones:
-      "Incluye las dos sesiones, el producto y el control posterior. Los retoques después de los 6 meses se presupuestan aparte.",
-    cuotas: cuotas(3, "Transferencia", 4),
-    mantenimiento: [],
-    duracionEstimada: "",
-    valorContencion: "",
-    valorAlta: "",
-    valorAltaFecha: "",
     seguimiento: [],
   },
 ]

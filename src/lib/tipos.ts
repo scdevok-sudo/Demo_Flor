@@ -56,23 +56,6 @@ export interface FotoSlot {
   url: string | null
 }
 
-export interface Cuota {
-  /** Número de cuota, desde 1 */
-  mes: number
-  medio: MedioPago
-  efectuado: boolean
-}
-
-/** Pago mensual de mantenimiento: el monto lo escribe Florencia a mano. */
-export interface RegistroMantenimiento {
-  id: string
-  /** AAAA-MM-DD */
-  fecha: string
-  /** En pesos, sólo dígitos */
-  monto: string
-  efectuado: boolean
-}
-
 export interface EntradaSeguimiento {
   id: string
   fecha: string
@@ -100,20 +83,6 @@ export interface Paciente {
   fotosAntes: FotoSlot[]
   /** Sólo armonización facial: las mismas 3 tomas después. */
   fotosDespues: FotoSlot[]
-  diagnostico: string
-  plan: string
-  tecnica: string
-  montoTotal: string
-  condiciones: string
-  /** Cuotas iniciales: de 1 a MAX_CUOTAS, a pagar en PLAZO_CUOTAS_MESES meses. */
-  cuotas: Cuota[]
-  mantenimiento: RegistroMantenimiento[]
-  /** Texto libre: «2 años», «hasta 4 años»… */
-  duracionEstimada: string
-  /** Vacío hasta que se sepa. */
-  valorContencion: string
-  valorAlta: string
-  valorAltaFecha: string
   seguimiento: EntradaSeguimiento[]
 }
 
@@ -122,14 +91,6 @@ export const PLAZO_CUOTAS_MESES = 6
 
 export function serieAFVacia(): FotoSlot[] {
   return SLOTS_AF.map((s) => ({ slot: s.id, url: null }))
-}
-
-export function cuotasVacias(cantidad = MAX_CUOTAS): Cuota[] {
-  return Array.from({ length: cantidad }, (_, i) => ({
-    mes: i + 1,
-    medio: "Transferencia" as MedioPago,
-    efectuado: false,
-  }))
 }
 
 export function etiquetaSlot(slot: SlotFoto): string {
@@ -156,17 +117,6 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     activo: true,
     fotosAntes: serieAFVacia(),
     fotosDespues: serieAFVacia(),
-    diagnostico: "",
-    plan: "",
-    tecnica: "",
-    montoTotal: "",
-    condiciones: "",
-    cuotas: cuotasVacias(),
-    mantenimiento: [],
-    duracionEstimada: "",
-    valorContencion: "",
-    valorAlta: "",
-    valorAltaFecha: "",
     seguimiento: [],
   }
 }

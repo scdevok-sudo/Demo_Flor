@@ -1,5 +1,6 @@
 import type { jsPDF } from "jspdf"
 
+import type { Cuota } from "@/data/presupuestos"
 import { esArmonizacion, type Paciente } from "@/lib/tipos"
 import { fechaLarga, formatoDNI, hoyISO, montoARS } from "@/lib/util"
 
@@ -15,6 +16,16 @@ const ALTO = 297
 const MARGEN = 18
 const UTIL = ANCHO - MARGEN * 2
 
+/** Lo que el presupuesto toma del diagnóstico y del módulo de pagos. */
+export interface ContenidoPresupuesto {
+  diagnostico: string
+  plan: string
+  tecnica: string
+  montoTotal: string
+  condiciones: string
+  cuotas: Cuota[]
+}
+
 export function nombreArchivo(p: Paciente): string {
   const limpio = `${p.apellido}-${p.nombre}`
     .normalize("NFD")
@@ -28,7 +39,7 @@ export function nombreArchivo(p: Paciente): string {
  * jsPDF se carga recién cuando hace falta: así el panel no arrastra
  * la librería en la carga inicial.
  */
-export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
+export async function generarPresupuesto(p: Paciente, c: ContenidoPresupuesto): Promise<jsPDF> {
   const { jsPDF } = await import("jspdf")
   const doc = new jsPDF({ unit: "mm", format: "a4" })
   let y = 0
@@ -161,15 +172,15 @@ export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
 
   // ---- Clínica ------------------------------------------------------------
   titulo("Diagnóstico")
-  parrafo(p.diagnostico)
+  parrafo(c.diagnostico)
 
   titulo("Plan de tratamiento")
-  parrafo(p.plan)
+  parrafo(c.plan)
 
   // Armonización facial no usa técnica de aparatología.
   if (!esArmonizacion(p.categoria)) {
     titulo("Técnica a utilizar")
-    parrafo(p.tecnica)
+    parrafo(c.tecnica)
   }
 
   // ---- Monto --------------------------------------------------------------
@@ -184,33 +195,33 @@ export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
   doc.text("MONTO TOTAL DEL TRATAMIENTO", MARGEN + 8, y + 9)
   doc.setFont("times", "bold")
   doc.setFontSize(22)
-  doc.text(montoARS(p.montoTotal), MARGEN + 8, y + 18.5)
+  doc.text(montoARS(c.montoTotal), MARGEN + 8, y + 18.5)
 
-  const total = Number(p.montoTotal) || 0
-  const pagas = p.cuotas.filter((c) => c.efectuado).length
+  const total = Number(c.montoTotal) || 0
+  const pagas = c.cuotas.filter((c) => c.efectuado).length
   if (pagas > 0) {
     doc.setFont("helvetica", "normal")
     doc.setFontSize(8)
     doc.setTextColor(...OSCURO)
-    doc.text(`${pagas} de ${p.cuotas.length} cuotas abonadas`, ANCHO - MARGEN - 8, y + 16, { align: "right" })
+    doc.text(`${pagas} de ${c.cuotas.length} cuotas abonadas`, ANCHO - MARGEN - 8, y + 16, { align: "right" })
   }
   y += 34
 
   // ---- Condiciones --------------------------------------------------------
   titulo("Condiciones")
-  parrafo(p.condiciones)
+  parrafo(c.condiciones)
 
   // ---- Plan de pagos ------------------------------------------------------
   // Columnas de 4 cuotas (hasta 8: dos columnas) para que entren en una sola página.
-  if (total > 0 && p.cuotas.length > 0) {
+  if (total > 0 && c.cuotas.length > 0) {
     const filas = 4
-    const anchoCol = UTIL / Math.max(2, Math.ceil(p.cuotas.length / filas))
+    const anchoCol = UTIL / Math.max(2, Math.ceil(c.cuotas.length / filas))
     // Se reserva el bloque entero antes del título, para que no quede huérfano.
     espacio(16 + filas * 5.4 + 4)
     titulo("Plan de pagos")
     const base = y
 
-    p.cuotas.forEach((cuota, i) => {
+    c.cuotas.forEach((cuota, i) => {
       const x = MARGEN + Math.floor(i / filas) * anchoCol
       const yCuota = base + (i % filas) * 5.4
 
@@ -234,8 +245,8 @@ export async function generarPresupuesto(p: Paciente): Promise<jsPDF> {
   return doc
 }
 
-export async function descargarPresupuesto(p: Paciente): Promise<void> {
-  const doc = await generarPresupuesto(p)
+export async function descargarPresupuesto(p: Paciente, c: ContenidoPresupuesto): Promise<void> {
+  const doc = await generarPresupuesto(p, c)
   doc.save(nombreArchivo(p))
 }
 
@@ -243,8 +254,8 @@ export async function descargarPresupuesto(p: Paciente): Promise<void> {
  * Imprime desde un iframe oculto en vez de abrir una pestaña nueva,
  * que el navegador suele bloquear.
  */
-export async function imprimirPresupuesto(p: Paciente): Promise<void> {
-  const doc = await generarPresupuesto(p)
+export async function imprimirPresupuesto(p: Paciente, c: ContenidoPresupuesto): Promise<void> {
+  const doc = await generarPresupuesto(p, c)
   const url = URL.createObjectURL(doc.output("blob"))
 
   const marco = document.createElement("iframe")
@@ -270,15 +281,15 @@ export async function imprimirPresupuesto(p: Paciente): Promise<void> {
 }
 
 /** Mensaje prellenado para compartir por WhatsApp (no adjunta el PDF). */
-export function mensajeWhatsApp(p: Paciente): string {
+export function mensajeWhatsApp(p: Paciente, c: ContenidoPresupuesto): string {
   return [
     `Hola ${p.nombre}, ¿cómo estás?`,
     "",
     "Te comparto el presupuesto de tu tratamiento:",
-    `• Plan: ${p.plan || "a definir"}`,
-    esArmonizacion(p.categoria) ? "" : `• Técnica: ${p.tecnica || "a definir"}`,
-    `• Monto total: ${montoARS(p.montoTotal)}`,
-    p.condiciones ? `• Condiciones: ${p.condiciones}` : "",
+    `• Plan: ${c.plan || "a definir"}`,
+    esArmonizacion(p.categoria) ? "" : `• Técnica: ${c.tecnica || "a definir"}`,
+    `• Monto total: ${montoARS(c.montoTotal)}`,
+    c.condiciones ? `• Condiciones: ${c.condiciones}` : "",
     "",
     "[Adjunto el PDF del presupuesto]",
     "",
@@ -289,6 +300,6 @@ export function mensajeWhatsApp(p: Paciente): string {
     .join("\n")
 }
 
-export function enlaceWhatsApp(p: Paciente): string {
-  return `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp(p))}`
+export function enlaceWhatsApp(p: Paciente, c: ContenidoPresupuesto): string {
+  return `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp(p, c))}`
 }

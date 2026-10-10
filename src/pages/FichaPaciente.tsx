@@ -24,6 +24,8 @@ import { Fotos } from "@/pages/modulos/Fotos"
 import { ProximosTurnos } from "@/pages/modulos/ProximosTurnos"
 import { Presupuesto } from "@/pages/modulos/Presupuesto"
 import { Seguimiento } from "@/pages/modulos/Seguimiento"
+import { useDiagnostico } from "@/data/useDiagnostico"
+import { usePresupuesto } from "@/data/usePresupuesto"
 import { useFichero, usePaciente } from "@/lib/store"
 import { esArmonizacion, type Paciente } from "@/lib/tipos"
 import { formatoDNI, iniciales } from "@/lib/util"
@@ -48,6 +50,9 @@ export function FichaPaciente() {
   const paciente = usePaciente(id)
   const { actualizarPaciente, cargandoPacientes, errorPacientes, recargarPacientes } = useFichero()
   const [solapa, setSolapa] = useState("datos")
+  // Se cargan acá (y no en cada solapa) para que el presupuesto vea el diagnóstico vigente.
+  const diagnostico = useDiagnostico(id ?? "")
+  const presupuesto = usePresupuesto(id ?? "")
 
   if (!paciente && cargandoPacientes) return <p className="py-20 text-center text-sm text-muted-foreground">Cargando ficha…</p>
   if (!paciente && errorPacientes) return <ErrorCarga mensaje={errorPacientes} reintentar={recargarPacientes} />
@@ -128,11 +133,11 @@ export function FichaPaciente() {
         </TabsContent>
 
         <TabsContent value="diagnostico" className="pt-5">
-          <Diagnostico paciente={paciente} actualizar={actualizar} />
+          <Diagnostico paciente={paciente} estado={diagnostico} />
         </TabsContent>
 
         <TabsContent value="presupuesto" className="pt-5">
-          <Presupuesto paciente={paciente} actualizar={actualizar} />
+          <Presupuesto paciente={paciente} estado={presupuesto} diagnostico={diagnostico.vigente} />
         </TabsContent>
 
         <TabsContent value="seguimiento" className="pt-5">
