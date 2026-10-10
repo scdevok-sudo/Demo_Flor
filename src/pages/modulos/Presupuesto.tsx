@@ -290,6 +290,7 @@ export function Presupuesto({ paciente, estado, diagnostico }: Props) {
               opciones={Array.from({ length: MAX_CUOTAS }, (_, i) => ({
                 valor: String(i + 1),
                 etiqueta: i === 0 ? "1 cuota" : `${i + 1} cuotas`,
+                deshabilitada: i + 1 < estado.minimoCuotas,
               }))}
             />
           </Campo>

@@ -87,8 +87,14 @@ export function usePresupuesto(pacienteId: string) {
       setPres({ ...pres, datos: r.valor })
     })
 
+  /** Número de la última cuota cobrada: la cantidad no puede bajar de ahí. */
+  const minimoCuotas = Math.max(1, ...cuotas.filter((c) => c.efectuado).map((c) => c.mes))
+
   const cambiarCantidad = (cantidad: number) =>
     correr(async () => {
+      if (cantidad < minimoCuotas) {
+        return setError(`No se puede bajar de ${minimoCuotas} cuotas: la cuota ${minimoCuotas} ya está cobrada.`)
+      }
       if (!pres) return setCantidadBorrador(cantidad)
       const r = await datos.ajustarCuotas(pres.id, pres.cuotas, cantidad, pres.datos.montoTotal, MEDIO_INICIAL)
       if (!r.ok) return setError(r.error)
@@ -139,6 +145,7 @@ export function usePresupuesto(pacienteId: string) {
     hayCambios,
     existe: pres !== null,
     cuotas,
+    minimoCuotas,
     mantenimiento,
     cargando,
     guardando,

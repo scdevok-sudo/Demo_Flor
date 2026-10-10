@@ -199,6 +199,10 @@ export async function ajustarCuotas(
   medioInicial: MedioPago
 ): Promise<Resultado<Cuota[]>> {
   const porCuota = montoCuota(total, cantidad)
+  // Nunca se borra una cuota ya cobrada: es un registro de pago real.
+  if (actuales.some((c) => c.efectuado && c.mes > cantidad)) {
+    return { ok: false, error: "No se puede reducir: hay cuotas ya cobradas que quedarían afuera." }
+  }
   if (cantidad < actuales.length) {
     const r = await supabase
       .from(TABLA_CUOTAS)
