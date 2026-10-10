@@ -4,7 +4,11 @@ import {
   type FotoSlot,
   type Paciente,
 } from "@/lib/tipos"
-import { fotoDemo } from "@/lib/util"
+
+/** Foto de relleno para la demo. No hay carga real de archivos. */
+function fotoDemo(semilla: string, ancho = 480, alto = 600): string {
+  return `https://picsum.photos/seed/${encodeURIComponent(semilla)}/${ancho}/${alto}`
+}
 
 /** Las 3 tomas de armonizacion facial, con las primeras `cuantos` cargadas. */
 function serieAF(semilla: string, cuantos: number = SLOTS_AF.length): FotoSlot[] {

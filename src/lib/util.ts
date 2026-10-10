@@ -1,8 +1,3 @@
-/** Foto de relleno para la demo. No hay carga real de archivos. */
-export function fotoDemo(semilla: string, ancho = 480, alto = 600): string {
-  return `https://picsum.photos/seed/${encodeURIComponent(semilla)}/${ancho}/${alto}`
-}
-
 export function nuevoId(prefijo = "id"): string {
   return `${prefijo}-${Math.random().toString(36).slice(2, 9)}`
 }

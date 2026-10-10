@@ -2,7 +2,6 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useReducer,
 
 import * as datosPacientes from "@/data/pacientes"
 import type { DatosPersistidos } from "@/data/pacientes"
-import { PACIENTES_DEMO } from "@/lib/datos"
 import {
   pacienteVacio,
   type Paciente,
@@ -61,7 +60,7 @@ interface Fichero {
 const FicheroContext = createContext<Fichero | null>(null)
 
 export function FicheroProvider({ children }: { children: ReactNode }) {
-  const [pacientes, dispatch] = useReducer(reducer, USAR_SEED ? PACIENTES_DEMO : [])
+  const [pacientes, dispatch] = useReducer(reducer, [])
   const [cargandoPacientes, setCargandoPacientes] = useState(!USAR_SEED)
   const [errorPacientes, setErrorPacientes] = useState<string | null>(null)
 
@@ -81,7 +80,13 @@ export function FicheroProvider({ children }: { children: ReactNode }) {
   }, [traerPacientes])
 
   useEffect(() => {
-    if (!USAR_SEED) traerPacientes()
+    if (!USAR_SEED) return traerPacientes()
+    // El import dinámico bajo el flag de desarrollo hace que los datos de prueba
+    // no entren al bundle de producción.
+    void import("@/lib/datos").then((m) => {
+      dispatch({ tipo: "cargar", pacientes: m.PACIENTES_DEMO })
+      setCargandoPacientes(false)
+    })
   }, [traerPacientes])
 
   const valor = useMemo<Fichero>(

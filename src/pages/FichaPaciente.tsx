@@ -16,7 +16,6 @@ import { AgregarATramites } from "@/components/ModalTramites"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { AntesDespues } from "@/pages/modulos/AntesDespues"
 import { DatosGenerales } from "@/pages/modulos/DatosGenerales"
 import { Diagnostico } from "@/pages/modulos/Diagnostico"
 import { Estudios } from "@/pages/modulos/Estudios"
@@ -27,7 +26,7 @@ import { Seguimiento } from "@/pages/modulos/Seguimiento"
 import { useDiagnostico } from "@/data/useDiagnostico"
 import { usePresupuesto } from "@/data/usePresupuesto"
 import { useFichero, usePaciente } from "@/lib/store"
-import { esArmonizacion, type Paciente } from "@/lib/tipos"
+import { esArmonizacion } from "@/lib/tipos"
 import { formatoDNI, iniciales } from "@/lib/util"
 
 /**
@@ -48,7 +47,7 @@ const SOLAPAS = [
 export function FichaPaciente() {
   const { id } = useParams()
   const paciente = usePaciente(id)
-  const { actualizarPaciente, cargandoPacientes, errorPacientes, recargarPacientes } = useFichero()
+  const { cargandoPacientes, errorPacientes, recargarPacientes } = useFichero()
   const [solapa, setSolapa] = useState("datos")
   // Se cargan acá (y no en cada solapa) para que el presupuesto vea el diagnóstico vigente.
   const diagnostico = useDiagnostico(id ?? "")
@@ -58,7 +57,6 @@ export function FichaPaciente() {
   if (!paciente && errorPacientes) return <ErrorCarga mensaje={errorPacientes} reintentar={recargarPacientes} />
   if (!paciente) return <NoEncontrado />
 
-  const actualizar = (cambios: Partial<Paciente>) => actualizarPaciente(paciente.id, cambios)
   const af = esArmonizacion(paciente.categoria)
 
   return (
@@ -122,7 +120,9 @@ export function FichaPaciente() {
 
         <TabsContent value="fotos" className="pt-5">
           {af ? (
-            <AntesDespues paciente={paciente} actualizar={actualizar} />
+            <p className="rounded-xl border border-dashed border-input bg-muted/40 px-5 py-10 text-center text-sm text-muted-foreground">
+              Las fotos de armonización facial llegan próximamente.
+            </p>
           ) : (
             <Fotos key={paciente.id} paciente={paciente} />
           )}
