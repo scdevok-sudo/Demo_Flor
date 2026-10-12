@@ -6,13 +6,16 @@ import { AuthProvider, useAuth } from "@/lib/auth"
 import { FicheroProvider } from "@/lib/store"
 import { Agenda } from "@/pages/Agenda"
 import { FichaPaciente } from "@/pages/FichaPaciente"
-import { Login } from "@/pages/Login"
+import { Login, NuevaContrasena } from "@/pages/Login"
 import { NuevoPaciente } from "@/pages/NuevoPaciente"
 import { Pacientes } from "@/pages/Pacientes"
 import { Tramites } from "@/pages/Tramites"
 
 function Rutas() {
-  const { session } = useAuth()
+  const { session, cargando, recuperando } = useAuth()
+  // Link del mail de recuperación: primero se elige la contraseña nueva.
+  if (recuperando && cargando) return <div className="min-h-svh" />
+  if (recuperando && session) return <NuevaContrasena />
   return (
     <Routes>
       <Route path="/login" element={session ? <Navigate to="/pacientes" replace /> : <Login />} />
