@@ -5,6 +5,8 @@ import {
   aISO,
   deISO,
   edadDesde,
+  enlaceWhatsAppChat,
+  numeroWhatsApp,
   fechaConDia,
   fechaCorta,
   fechaLarga,
@@ -176,5 +178,34 @@ describe("varios", () => {
     expect(montoARS("abc")).toBe("—")
     expect(montoARS(1500000)).toMatch(/1\.500\.000/)
     expect(montoARS("$ 1500000")).toMatch(/1\.500\.000/)
+  })
+})
+
+describe("numeroWhatsApp / enlaceWhatsAppChat", () => {
+  it("normaliza celulares argentinos a 549 + área + número", () => {
+    expect(numeroWhatsApp("221 555-0123")).toBe("5492215550123")
+    expect(numeroWhatsApp("0221 555-0123")).toBe("5492215550123")
+    expect(numeroWhatsApp("+54 9 221 555-0123")).toBe("5492215550123")
+    expect(numeroWhatsApp("54 221 555 0123")).toBe("5492215550123")
+  })
+  it("descarta el 15 del celular", () => {
+    expect(numeroWhatsApp("0221 15 555-0123")).toBe("5492215550123")
+    expect(numeroWhatsApp("(0221) 15-555-0123")).toBe("5492215550123")
+    expect(numeroWhatsApp("011 15 5555-0123")).toBe("5491155550123")
+    expect(numeroWhatsApp("221 15 5550123")).toBe("5492215550123")
+    expect(numeroWhatsApp("0221155550123")).toBe("5492215550123")
+    expect(numeroWhatsApp("1155550123")).toBe("5491155550123")
+  })
+  it("no toca un 15 que es parte del número", () => {
+    expect(numeroWhatsApp("221 555-1523")).toBe("5492215551523")
+    expect(numeroWhatsApp("2215551500")).toBe("5492215551500")
+  })
+  it("devuelve null si el número no alcanza o está vacío", () => {
+    expect(numeroWhatsApp("")).toBeNull()
+    expect(numeroWhatsApp("555-0123")).toBeNull()
+  })
+  it("arma el enlace al chat, o sin número si no hay teléfono válido", () => {
+    expect(enlaceWhatsAppChat("221 555-0123", "Hola")).toBe("https://wa.me/5492215550123?text=Hola")
+    expect(enlaceWhatsAppChat("", "Hola")).toBe("https://wa.me/?text=Hola")
   })
 })

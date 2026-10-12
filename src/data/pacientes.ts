@@ -22,7 +22,7 @@ function invertir(obj: Record<string, string>): Record<string, string> {
 /** Los campos de `Paciente` que viven en la tabla `pacientes`. */
 export type DatosPersistidos = Pick<
   Paciente,
-  | "nombre" | "apellido" | "dni" | "mail" | "ocupacion" | "fechaNacimiento" | "categoria"
+  | "nombre" | "apellido" | "dni" | "mail" | "telefono" | "ocupacion" | "fechaNacimiento" | "categoria"
   | "sede" | "anamnesis" | "obraSocial" | "particularidades" | "derivadoPor" | "activo"
 >
 
@@ -40,6 +40,7 @@ function aPaciente(f: Fila): Paciente {
     apellido: texto(f[C.apellido]),
     dni: texto(f[C.dni]),
     mail: texto(f[C.email]),
+    telefono: texto(f[C.telefono]),
     ocupacion: texto(f[C.ocupacion]),
     fechaNacimiento,
     edad: edadDesde(fechaNacimiento),
@@ -61,6 +62,7 @@ function aFila(d: DatosPersistidos): Fila {
     [C.apellido]: d.apellido.trim(),
     [C.dni]: soloDigitos(d.dni),
     [C.email]: aNull(d.mail),
+    [C.telefono]: aNull(d.telefono),
     [C.ocupacion]: aNull(d.ocupacion),
     [C.fechaNacimiento]: aNull(d.fechaNacimiento),
     [C.categoria]: CATEGORIA_A_DB[d.categoria],

@@ -3,7 +3,7 @@ import { ImageOff, Plus, RefreshCw, Video } from "lucide-react"
 import { cn } from "cn"
 
 import { TituloBloque } from "@/components/campos"
-import { ContenidoArchivo, RecuadroSlot, SelectorArchivo } from "@/components/fotos"
+import { BotonBorrar, ContenidoArchivo, RecuadroSlot, SelectorArchivo } from "@/components/fotos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -89,6 +89,7 @@ function Serie({
               accept={ACEPTA_MEDIA}
               subiendo={archivos.subiendo.includes(archivo?.id ?? `${origen}:${s.id}`)}
               onArchivo={(file) => subirSlot(s.id, archivo, file)}
+              onBorrar={archivos.borrar}
             />
           )
         })}
@@ -121,7 +122,7 @@ function ComparaFoto({ archivo, etiqueta }: { archivo: ArchivoClinico | null; et
   )
 }
 
-/** Foto o video de control con fecha y nota. Se puede reemplazar, no borrar. */
+/** Foto o video de control con fecha y nota. Se puede reemplazar o borrar (con confirmación). */
 function TileFechado({ archivo, archivos }: { archivo: ArchivoClinico; archivos: Archivos }) {
   const [nota, setNota] = useState(archivo.etiqueta ?? "")
   const esVideo = archivo.tipo === "video"
@@ -136,15 +137,23 @@ function TileFechado({ archivo, archivos }: { archivo: ArchivoClinico; archivos:
     <div className="space-y-1.5">
       <div className="relative aspect-4/5 overflow-hidden rounded-xl border border-border bg-muted">
         <ContenidoArchivo archivo={archivo} etiqueta={nota || "Control"} />
-        <SelectorArchivo
-          accept={ACEPTA_MEDIA}
-          onArchivo={(file) => archivos.reemplazar(archivo, file, [...TIPOS_MEDIA])}
-          disabled={subiendo}
-          etiqueta={esVideo ? "Reemplazar video" : "Reemplazar foto"}
-          className="absolute top-1 right-1 rounded-lg bg-white/90 p-2.5 text-brand-dark shadow-sm md:top-1.5 md:right-1.5 md:p-1.5"
-        >
-          <RefreshCw className="size-5 md:size-3.5" />
-        </SelectorArchivo>
+        <div className="absolute top-1 right-1 flex gap-1 md:top-1.5 md:right-1.5">
+          <SelectorArchivo
+            accept={ACEPTA_MEDIA}
+            onArchivo={(file) => archivos.reemplazar(archivo, file, [...TIPOS_MEDIA])}
+            disabled={subiendo}
+            etiqueta={esVideo ? "Reemplazar video" : "Reemplazar foto"}
+            className="rounded-lg bg-white/90 p-2.5 text-brand-dark shadow-sm md:p-1.5"
+          >
+            <RefreshCw className="size-5 md:size-3.5" />
+          </SelectorArchivo>
+          <BotonBorrar
+            nombre={`${esVideo ? "el video" : "la foto"} del ${fechaCorta(archivo.fecha)}`}
+            disabled={subiendo}
+            onConfirmar={() => archivos.borrar(archivo)}
+            className="rounded-lg bg-white/90 p-2.5 text-destructive shadow-sm md:p-1.5"
+          />
+        </div>
         <span className="pointer-events-none absolute bottom-1.5 left-1.5 rounded bg-brand-dark/85 px-1.5 py-0.5 text-[10px] font-medium text-white tabular-nums">
           {fechaCorta(archivo.fecha)}
         </span>

@@ -56,7 +56,7 @@ function Activo({ valores, set, nota }: PropsForm & { nota: string }) {
 function FormArmonizacion({ valores, set }: PropsForm) {
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Campo etiqueta="Nombre">
           <Input
             className="h-9"
@@ -81,6 +81,16 @@ function FormArmonizacion({ valores, set }: PropsForm) {
             value={valores.mail}
             onChange={(e) => set("mail", e.target.value)}
             placeholder="malena.quiroga@example.com"
+          />
+        </Campo>
+        <Campo etiqueta="Teléfono" nota="Con código de área, el 15 no hace falta. Abre el chat de WhatsApp.">
+          <Input
+            className="h-9 tabular-nums"
+            type="tel"
+            inputMode="tel"
+            value={valores.telefono}
+            onChange={(e) => set("telefono", e.target.value)}
+            placeholder="221 555-0123"
           />
         </Campo>
       </div>
@@ -144,7 +154,7 @@ export function FormDatosPaciente({ valores, set }: PropsForm) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Campo etiqueta="Nombre">
           <Input
             className="h-9"
@@ -169,6 +179,16 @@ export function FormDatosPaciente({ valores, set }: PropsForm) {
             value={valores.mail}
             onChange={(e) => set("mail", e.target.value)}
             placeholder="familia.fernandez@example.com"
+          />
+        </Campo>
+        <Campo etiqueta="Teléfono" nota="Con código de área, el 15 no hace falta. Abre el chat de WhatsApp.">
+          <Input
+            className="h-9 tabular-nums"
+            type="tel"
+            inputMode="tel"
+            value={valores.telefono}
+            onChange={(e) => set("telefono", e.target.value)}
+            placeholder="221 555-0123"
           />
         </Campo>
       </div>

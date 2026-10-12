@@ -19,7 +19,7 @@ interface Extra {
 
 /**
  * Archivos clínicos de un paciente (módulos 2 y 3) contra Supabase Storage.
- * Nunca borra: sólo sube y reemplaza.
+ * Sube, reemplaza y borra (el borrado siempre se confirma antes, en la pantalla).
  */
 export function useArchivos(pacienteId: string) {
   const [archivos, setArchivos] = useState<ArchivoClinico[]>([])
@@ -84,6 +84,22 @@ export function useArchivos(pacienteId: string) {
     setArchivos((a) => a.map((x) => (x.id === archivo.id ? r.valor : x)))
   }
 
+  /** Borra el registro y el objeto de Storage. Devuelve false si algo falló (el motivo queda en `error`). */
+  async function borrar(archivo: ArchivoClinico): Promise<boolean> {
+    setError(null)
+    marcar(archivo.id, true)
+    const r = await datos.borrar(archivo)
+    marcar(archivo.id, false)
+    if (!r.ok) {
+      setError(r.error)
+      return false
+    }
+    // Si la fila se borró pero el objeto no, igual deja de mostrarse y se avisa.
+    setArchivos((a) => a.filter((x) => x.id !== archivo.id))
+    if (r.valor.aviso) setError(r.valor.aviso)
+    return r.valor.aviso === null
+  }
+
   async function actualizar(
     archivo: ArchivoClinico,
     cambios: { etiqueta?: string | null; etapa?: Etapa | null }
@@ -102,6 +118,7 @@ export function useArchivos(pacienteId: string) {
     subiendo,
     subir,
     reemplazar,
+    borrar,
     actualizar,
     delOrigen: (origen: Origen) => archivos.filter((a) => a.origen === origen),
   }

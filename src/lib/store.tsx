@@ -35,9 +35,9 @@ export type Guardado = { ok: true; paciente: Paciente } | { ok: false; error: st
 
 /** Deja sólo los campos que viven en la tabla `pacientes`. */
 export function datosPersistidos(p: Paciente | Omit<Paciente, "id">): DatosPersistidos {
-  const { nombre, apellido, dni, mail, ocupacion, fechaNacimiento, categoria, sede, anamnesis,
+  const { nombre, apellido, dni, mail, telefono, ocupacion, fechaNacimiento, categoria, sede, anamnesis,
     obraSocial, particularidades, derivadoPor, activo } = p
-  return { nombre, apellido, dni, mail, ocupacion, fechaNacimiento, categoria, sede, anamnesis,
+  return { nombre, apellido, dni, mail, telefono, ocupacion, fechaNacimiento, categoria, sede, anamnesis,
     obraSocial, particularidades, derivadoPor, activo }
 }
 

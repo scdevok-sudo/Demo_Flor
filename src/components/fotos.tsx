@@ -1,7 +1,16 @@
-import { useRef, type ReactNode } from "react"
+import { useRef, useState, type ReactNode } from "react"
 import { Camera, ImageOff, RefreshCw, Trash2 } from "lucide-react"
 import { cn } from "cn"
 
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog"
 import type { ArchivoClinico } from "@/data/archivos"
 
 /**
@@ -117,19 +126,94 @@ export function SelectorArchivo({
   )
 }
 
-/** Recuadro de un slot fijo. Vacío: invita a subir. Cargado: solo se puede reemplazar, no borrar. */
+/**
+ * Botón de borrar + modal de confirmación. Es evidencia clínica: nunca borra de un solo clic.
+ * `nombre` es lo que se nombra en el modal (p. ej. «Perfil izquierdo» o «el estudio.pdf»).
+ */
+export function BotonBorrar({
+  nombre,
+  disabled,
+  onConfirmar,
+  className,
+  iconoClassName,
+}: {
+  nombre: string
+  disabled?: boolean
+  onConfirmar: () => Promise<unknown>
+  className?: string
+  iconoClassName?: string
+}) {
+  const [abierto, setAbierto] = useState(false)
+  const [borrando, setBorrando] = useState(false)
+
+  async function confirmar() {
+    setBorrando(true)
+    await onConfirmar()
+    setBorrando(false)
+    setAbierto(false)
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        disabled={disabled}
+        aria-label={`Borrar ${nombre}`}
+        onClick={() => setAbierto(true)}
+        className={className}
+      >
+        <Trash2 className={iconoClassName ?? "size-5 md:size-3.5"} />
+      </button>
+      <Dialog open={abierto} onOpenChange={(v) => (borrando ? undefined : setAbierto(v))}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="font-heading text-xl text-brand-dark">
+              ¿Borrar {nombre}?
+            </DialogTitle>
+            <DialogDescription>
+              Es material clínico del paciente. Se elimina de la ficha y del almacenamiento, y no
+              se puede recuperar.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              className="h-11 sm:h-9"
+              disabled={borrando}
+              onClick={() => setAbierto(false)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              className="h-11 sm:h-9"
+              disabled={borrando}
+              onClick={() => void confirmar()}
+            >
+              {borrando ? "Borrando…" : "Sí, borrar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
+  )
+}
+
+/** Recuadro de un slot fijo. Vacío: invita a subir. Cargado: se puede reemplazar o borrar (el slot queda libre). */
 export function RecuadroSlot({
   archivo,
   etiqueta,
   subiendo,
   accept,
   onArchivo,
+  onBorrar,
 }: {
   archivo: ArchivoClinico | null
   etiqueta: string
   subiendo: boolean
   accept: string
   onArchivo: (file: File) => void
+  onBorrar: (archivo: ArchivoClinico) => Promise<unknown>
 }) {
   return (
     <div className="space-y-1.5">
@@ -142,15 +226,23 @@ export function RecuadroSlot({
         {archivo ? (
           <>
             <ContenidoArchivo archivo={archivo} etiqueta={etiqueta} />
-            <SelectorArchivo
-              accept={accept}
-              onArchivo={onArchivo}
-              disabled={subiendo}
-              etiqueta={`Reemplazar ${etiqueta}`}
-              className="absolute top-1 right-1 rounded-lg bg-white/90 p-2.5 text-brand-dark shadow-sm md:top-1.5 md:right-1.5 md:p-1.5"
-            >
-              <RefreshCw className="size-5 md:size-3.5" />
-            </SelectorArchivo>
+            <div className="absolute top-1 right-1 flex gap-1 md:top-1.5 md:right-1.5">
+              <SelectorArchivo
+                accept={accept}
+                onArchivo={onArchivo}
+                disabled={subiendo}
+                etiqueta={`Reemplazar ${etiqueta}`}
+                className="rounded-lg bg-white/90 p-2.5 text-brand-dark shadow-sm md:p-1.5"
+              >
+                <RefreshCw className="size-5 md:size-3.5" />
+              </SelectorArchivo>
+              <BotonBorrar
+                nombre={etiqueta}
+                disabled={subiendo}
+                onConfirmar={() => onBorrar(archivo)}
+                className="rounded-lg bg-white/90 p-2.5 text-destructive shadow-sm md:p-1.5"
+              />
+            </div>
           </>
         ) : (
           <SelectorArchivo

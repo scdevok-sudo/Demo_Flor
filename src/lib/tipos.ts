@@ -68,6 +68,8 @@ export interface Paciente {
   sede: Sede
   /** Se usa para vincular al paciente con los trámites pendientes. */
   mail: string
+  /** Para abrir el chat de WhatsApp del paciente (wa.me). */
+  telefono: string
   anamnesis: string
   obraSocial: string
   particularidades: string
@@ -97,6 +99,7 @@ export function pacienteVacio(): Omit<Paciente, "id"> {
     nombre: "",
     apellido: "",
     mail: "",
+    telefono: "",
     dni: "",
     ocupacion: "",
     edad: "",

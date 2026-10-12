@@ -1,9 +1,10 @@
 import { BUCKETS, COLUMNAS_ARCHIVOS as C, TABLA_ARCHIVOS } from "@/data/constantes"
 import { supabase } from "@/lib/supabase"
+import { extensionDe } from "@/lib/visores"
 import { SLOTS_BOCA, SLOTS_CARA } from "@/lib/tipos"
 
 export type Origen = "foto_inicial" | "foto_final" | "intra_tratamiento" | "radiografia" | "estudio"
-export type TipoArchivo = "imagen" | "video" | "pdf"
+export type TipoArchivo = "imagen" | "video" | "pdf" | "modelo3d"
 export type Etapa = "inicial" | "intermedio" | "final"
 
 export interface ArchivoClinico {
@@ -31,23 +32,19 @@ export const TOPES: Record<Origen, number> = {
 }
 
 const MB = 1024 * 1024
-const MAX_BYTES: Record<TipoArchivo, number> = { imagen: 25 * MB, video: 100 * MB, pdf: 25 * MB }
+const MAX_BYTES: Record<TipoArchivo, number> = { imagen: 25 * MB, video: 100 * MB, pdf: 25 * MB, modelo3d: 50 * MB }
 
 const POR_EXTENSION: Record<string, TipoArchivo> = {
   jpg: "imagen", jpeg: "imagen", png: "imagen", webp: "imagen", heic: "imagen", heif: "imagen",
   mp4: "video", mov: "video", webm: "video", m4v: "video",
   pdf: "pdf",
+  stl: "modelo3d", ply: "modelo3d",
 }
 
-const NOMBRE_TIPO: Record<TipoArchivo, string> = { imagen: "imágenes", video: "videos", pdf: "PDF" }
+const NOMBRE_TIPO: Record<TipoArchivo, string> = { imagen: "imágenes", video: "videos", pdf: "PDF", modelo3d: "modelos 3D (STL o PLY)" }
 
 function bucketDe(origen: Origen): string {
   return origen === "radiografia" || origen === "estudio" ? BUCKETS.estudios : BUCKETS.fotos
-}
-
-function extensionDe(nombre: string): string {
-  const i = nombre.lastIndexOf(".")
-  return i >= 0 ? nombre.slice(i + 1).toLowerCase() : ""
 }
 
 /** Valida tipo y tamaño. `permitidos` depende de la sección. */
@@ -168,8 +165,8 @@ export async function subir(d: DatosSubida): Promise<Resultado<ArchivoClinico>> 
 }
 
 /**
- * Reemplaza el contenido de un registro. El archivo anterior queda en el bucket
- * (no se borra nada, para no perder trazabilidad); sólo el registro apunta al nuevo.
+ * Reemplaza el contenido de un registro. Orden: sube el objeto nuevo, actualiza la fila y
+ * recién después borra el objeto viejo, así un fallo a mitad de camino nunca deja la ficha sin archivo.
  */
 export async function reemplazar(
   actual: ArchivoClinico,
@@ -189,7 +186,41 @@ export async function reemplazar(
     await supabase.storage.from(bucketDe(actual.origen)).remove([objeto.valor])
     return { ok: false, error: "No se pudo reemplazar el archivo. Intentá de nuevo." }
   }
+  // La fila ya apunta al archivo nuevo: si el viejo no se puede borrar, el reemplazo igual vale.
+  const { error: errorViejo } = await supabase.storage
+    .from(bucketDe(actual.origen))
+    .remove([actual.storagePath])
+  if (errorViejo) console.warn("No se pudo borrar el archivo anterior de Storage:", actual.storagePath)
   return { ok: true, valor: aArchivo(data as Fila, await urlFirmada(actual.origen, objeto.valor)) }
+}
+
+/**
+ * Borra el registro y después el objeto del bucket, para no dejar archivos huérfanos.
+ * Va primero la fila: si el borrado del objeto falla, el archivo ya no aparece en la ficha
+ * y el error avisa que quedó en Storage; al revés, quedaría una fila apuntando a la nada.
+ */
+export async function borrar(actual: ArchivoClinico): Promise<Resultado<{ aviso: string | null }>> {
+  // `select()` devuelve las filas borradas: vacío significa que la política RLS no dejó borrar.
+  const { data, error } = await supabase
+    .from(TABLA_ARCHIVOS)
+    .delete()
+    .eq(C.id, actual.id)
+    .select(C.id)
+  if (error || !data || data.length === 0) {
+    return { ok: false, error: "No se pudo borrar el archivo. Intentá de nuevo." }
+  }
+  const { data: quitados, error: errorStorage } = await supabase.storage
+    .from(bucketDe(actual.origen))
+    .remove([actual.storagePath])
+  if (errorStorage || !quitados || quitados.length === 0) {
+    return {
+      ok: true,
+      valor: {
+        aviso: `Se quitó de la ficha, pero el archivo no se pudo borrar del almacenamiento (${actual.storagePath}). Avisale a Santi.`,
+      },
+    }
+  }
+  return { ok: true, valor: { aviso: null } }
 }
 
 export async function actualizarCampos(

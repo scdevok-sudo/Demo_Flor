@@ -8,6 +8,16 @@ Donde dice "Verificar en Supabase", podés pedirme a mí que lo chequee directo 
 
 ---
 
+## Antes de empezar (preparación, 5 minutos)
+
+- [ ] `npm test`, `npm run lint` y `npm run build` pasan limpios.
+- [ ] Tener **dos pacientes de prueba con datos ficticios** (nunca reales), uno por sede, y uno más para dar de baja.
+- [ ] Tener a mano un celular (o el modo dispositivo del navegador a ~375px), una foto, un video corto, un PDF y un `.zip` para probar rechazos.
+- [ ] Abrir la consola del navegador (F12) y dejarla abierta durante todo el recorrido.
+- [ ] Si algo falla, anotarlo en la tabla del final antes de seguir.
+
+---
+
 ## Ya cubierto por tests automáticos (`npm test`)
 
 Correr `npm test` antes de dar por buena una fase: tiene que pasar todo. Estos casos **no** hay que repetirlos a mano (se sacaron de las listas de abajo):
@@ -57,6 +67,7 @@ Además, `sql/verificar-rls.sql` revisa RLS y permisos de las tablas y los bucke
 
 **Edición**
 - [ ] Editar un campo, "Guardar cambios", refrescar: el cambio quedó.
+- [ ] Teléfono (requiere la columna `telefono` en `pacientes`): cargarlo en el alta y en la edición, guardar, refrescar: queda. Probar escritos distintos (`221 555-0123`, `0221 15 555-0123`, `+54 9 221 555 0123`) y confirmar a qué chat abre WhatsApp en cada caso. Vaciarlo y guardar: queda en null.
 - [ ] Intentar cambiar el DNI de un paciente al DNI de otro paciente ya existente: mismo mensaje de duplicado.
 
 **Baja**
@@ -79,59 +90,134 @@ Además, `sql/verificar-rls.sql` revisa RLS y permisos de las tablas y los bucke
 - [ ] Radiografías: tope 6. Estudios: tope 4.
 - [ ] Subir un `.zip` a una categoría de solo imagen: el mensaje se ve en pantalla y no rompe nada (qué tipos y tamaños se aceptan ya está testeado).
 - [ ] Verificar en Supabase Storage que el archivo subido realmente está en el bucket correspondiente (`pacientes-fotos` / `pacientes-estudios`), con el path `{paciente_id}/{origen}/...` — no solo que se ve en la UI.
-- [ ] Intentar borrar un archivo ya cargado: no debería estar permitido (por ahora solo reemplazar, según el brief).
-- [ ] Reemplazar un archivo ya cargado: confirmar qué pasa exactamente (¿pisa al anterior? ¿queda duplicado?). Si no está claro, preguntame antes de asumir que está bien.
+- [ ] Borrar una foto de slot fijo (inicial o final): aparece el modal «¿Borrar …?». «Cancelar» (o cerrar con Esc) no borra nada; «Sí, borrar» la quita y el slot vuelve a mostrar «Subir».
+- [ ] Después de borrar un slot, subir una foto nueva en ese mismo slot: se carga normal.
+- [ ] Borrar una foto/video intra-tratamiento, una radiografía y un estudio: mismo modal, y el contador («N de 20», «N de 6», «N de 4») baja.
+- [ ] Tras borrar, verificar en Supabase: la fila ya no está en `archivos_clinicos` **y** el objeto ya no está en el bucket (`pacientes-fotos` / `pacientes-estudios`). Si la política de Storage no permite DELETE, la app avisa con un mensaje que nombra el path: confirmar que no pasa.
+- [ ] Borrar en mobile (375px): el botón del tacho es visible y tocable sin hover, junto al de reemplazar.
+- [ ] Con «Comparar con las iniciales» activado, borrar una inicial y volver a la comparación: ese casillero queda vacío («Antes»).
+- [ ] Reemplazar un archivo ya cargado: el registro apunta al nuevo archivo. Ojo: el objeto anterior queda en el bucket (no se borra al reemplazar); confirmar si es lo que querés ahora que el borrado existe.
 - [ ] Subir una foto desde el viewport mobile (375px).
 - [ ] Carga de una foto intra-tratamiento con fecha asociada: la fecha queda guardada (se va a usar en Fase 4 para vincular con seguimiento).
 
 ## Fase 3 — Diagnóstico + Presupuesto y pagos
 
-- [ ] Cargar diagnóstico/plan/técnica y guardar.
-- [ ] Reemplazar el diagnóstico de un paciente que ya tenía uno: confirmar que queda un historial (fila nueva), no que pisa el anterior.
-- [ ] Presupuesto: probar con 1 cuota y con 8 cuotas (los dos extremos).
-- [ ] Cargar varios registros de mantenimiento sin límite — confirmar que no hay un tope artificial que no debería estar.
-- [ ] Generar el PDF del presupuesto: revisar que tenga la identidad visual correcta (colores `#434952`/`#8D9CA4`/`#C2C5C6`/acento `#F88F8F`, tipografía) y los datos reales del paciente, no placeholders.
-- [ ] Generar PDF con campos opcionales vacíos (ej. sin valor de contención cargado): no rompe la generación.
-- [ ] Botón de compartir por WhatsApp: abre `wa.me` con un mensaje prellenado razonable — confirmar que no intenta mandar nada automático.
+**Diagnóstico**
+- [ ] Cargar diagnóstico, plan y técnica, tocar "Guardar diagnóstico", refrescar: siguen ahí.
+- [ ] Editar y guardar de nuevo: aparece "Versiones anteriores (1)" con el texto viejo intacto. En Supabase, `diagnosticos` tiene 2 filas para ese paciente (no se pisó la primera).
+- [ ] Editar el texto y **no** guardar, cambiar de solapa y volver: el borrador sigue ahí con el aviso "Hay cambios sin guardar". Refrescar la página sin guardar: vuelve a la versión guardada.
+- [ ] El botón "Guardar diagnóstico" está deshabilitado si no hay cambios.
+
+**Presupuesto: alta y datos**
+- [ ] Sin guardar nada, la solapa Presupuesto muestra un borrador con 8 cuotas pendientes y el botón dice "Crear presupuesto". En Supabase todavía no hay fila en `presupuestos`.
+- [ ] "Crear presupuesto" con monto y condiciones: aparecen 1 fila en `presupuestos` y 8 en `cuotas` (`numero_cuota` 1 a 8, estado pendiente, `monto` = total / 8 redondeado).
+- [ ] Cambiar el monto total y guardar: el `monto` de **todas** las cuotas se recalcula.
+- [ ] El diagnóstico, plan y técnica que se ven en el presupuesto son los de la versión **guardada** (no los de un borrador sin guardar).
+- [ ] Duración estimada en texto libre ("2 años", "hasta 4 años"): se guarda y vuelve tras refrescar.
+- [ ] Valor de contención, valor de alta y fecha de alta: se guardan; dejarlos vacíos también guarda sin error.
+
+**Cuotas (zona de riesgo: son registros de pago reales)**
+- [ ] Probar 1 cuota y 8 cuotas (extremos). Bajar de 8 a 5 con todas pendientes: las filas 6 a 8 se borran en `cuotas`. Subir de 5 a 8: se crean 6, 7 y 8 pendientes.
+- [ ] **Cobrar las cuotas 7 y 8 y bajar el selector a 5: las opciones 1 a 7 aparecen deshabilitadas y no se borra nada.** En Supabase, las cuotas 7 y 8 siguen con estado `efectuado`.
+- [ ] Desmarcar la 8 y bajar a 7: sí se permite, y la 8 desaparece. Con la 7 cobrada no se puede bajar de 7.
+- [ ] Cobrar una cuota: en Supabase `estado = efectuado` y `fecha` = hoy. Desmarcarla: `pendiente` y `fecha` vacía.
+- [ ] Cambiar el medio de pago (efectivo / transferencia) de una cuota y refrescar: persiste.
+- [ ] Cobrar una cuota en un paciente que **no** tenía presupuesto creado: se crea el presupuesto en ese momento y la cuota queda cobrada (no se pierde el clic).
+
+**Mantenimiento**
+- [ ] Agregar 15 o más registros sin que aparezca ningún tope. Cambiar el monto de uno, marcarlo efectuado, refrescar: persiste.
+- [ ] Borrar un registro: desaparece en pantalla y en Supabase (`mantenimiento_registros`). Confirmar que es lo que querés (borra sin pedir confirmación).
+- [ ] Agregar un mantenimiento en un paciente sin presupuesto creado: se crea el presupuesto y el registro queda guardado.
+
+**PDF y WhatsApp**
+- [ ] Generar PDF: membrete y colores de marca correctos, datos reales del paciente, diagnóstico/plan/técnica vigentes, monto, condiciones y plan de pagos con cuotas abonadas/pendientes.
+- [ ] PDF con campos vacíos (sin condiciones, sin monto, sin cuotas cobradas): se genera sin romper.
+- [ ] PDF con un texto de diagnóstico muy largo: pasa a una segunda página con el encabezado reducido y el pie.
+- [ ] Imprimir: abre el diálogo de impresión con el PDF.
+- [ ] Enviar por WhatsApp: abre `wa.me` con el chat del paciente (según su teléfono) y el mensaje prellenado. Si el paciente no tiene teléfono, abre WhatsApp sin contacto elegido. El PDF se adjunta a mano.
+- [ ] Probar PDF y WhatsApp con cambios de monto sin guardar: confirmar qué muestran (hoy usan lo que está en pantalla, no lo guardado).
 
 ## Fase 4 — Seguimiento
 
-- [ ] Alta de un registro de seguimiento con fecha y texto libre.
-- [ ] Cargar más de un registro en la misma fecha: no se pisan entre sí.
-- [ ] Si el paciente tiene fotos intra-tratamiento cargadas con esa misma fecha (Fase 2), confirmar que aparecen vinculadas automáticamente en el registro de seguimiento.
-- [ ] Probar cargar seguimiento en un paciente dado de baja (inactivo): confirmar qué hace el sistema y si es el comportamiento esperado (el brief dice "mientras el paciente esté activo").
+- [ ] Alta con fecha de hoy y texto: aparece arriba del historial, y tras refrescar sigue ahí.
+- [ ] Alta con una fecha pasada: se ubica en el orden cronológico correcto (más reciente primero).
+- [ ] Dos entradas en la misma fecha: ambas se ven, ninguna pisa a la otra.
+- [ ] Texto con saltos de línea: se respetan en el historial.
+- [ ] Botón "Agregar" deshabilitado con el texto vacío o solo espacios.
+- [ ] **Vínculo con fotos:** subir una foto y un video intra-tratamiento hoy (solapa Fotos) y cargar una entrada de seguimiento con fecha de hoy: foto y video aparecen debajo de esa entrada. La entrada de otra fecha no los muestra.
+- [ ] Una foto de otro tipo (inicial, final) cargada hoy **no** aparece en el seguimiento.
+- [ ] El video del seguimiento se reproduce desde la entrada.
+- [ ] Borrar una entrada: primero pregunta "¿Borrar? Sí / No". "No" no borra; "Sí" la borra (también en Supabase).
+- [ ] Paciente **inactivo** (dado de baja): el formulario de alta no aparece (se ve el aviso), pero el historial sigue visible.
+- [ ] Volver a activar al paciente: el formulario reaparece.
+- [ ] Con la conexión cortada (modo offline del navegador) intentar agregar: muestra el error y **no** pierde el texto escrito.
 
 ## Fase 5 — Agenda virtual
 
-- [ ] La Plata: cargar un bloque horario recurrente (ej. lunes y miércoles de 14 a 18) y confirmar que se repite todas las semanas en esos días.
-- [ ] Cargar dos bloques el mismo día (ej. mañana y tarde): la pantalla los acepta; y uno que se pisa con otro muestra el aviso (la regla está testeada).
-- [ ] Tandil: cargar una jornada puntual con fecha y horario específico.
-- [ ] Tandil, un día sin jornada cargada: la agenda muestra el aviso de "no hay turnos disponibles ese día", no una grilla vacía ni un error.
-- [ ] Crear un turno de cada duración (15/20/30/45/60 min).
-- [ ] Intentar crear un turno que se superpone con uno ya existente, o que se pasa del cierre del bloque: la pantalla lo bloquea con mensaje (la regla está testeada).
-- [ ] Asignar un turno a un paciente existente usando el buscador (debe reusar el de Fase 1).
-- [ ] Probar los cuatro estados: libre → ocupado → cancelado → no asistió, y las acciones de reactivar/liberar horario.
-- [ ] Botón de enviar turno por WhatsApp.
-- [ ] Tab "Próximos turnos" en la ficha del paciente: solo muestra turnos futuros, no pasados.
-- [ ] Selector de sede en la agenda: la vista de La Plata (grilla semanal) y la de Tandil (calendario de jornadas) se ven claramente distintas.
-- [ ] Vista mobile de la agenda: turnos posicionados por hora con alto proporcional a la duración, no una grilla uniforme.
+**Horarios**
+- [ ] La Plata: cargar un bloque recurrente (ej. lunes y miércoles de 14 a 18), guardar, refrescar: sigue ahí y aparece en todas las semanas (probar semana siguiente y anterior).
+- [ ] Dos bloques el mismo día (mañana y tarde): ambos se guardan y se ven. Uno que se pisa con otro: aviso en pantalla y no deja guardar.
+- [ ] Editar un bloque existente (cambiar horario o días) y quitar uno: en Supabase (`bloques_horarios`) no quedan filas duplicadas ni huérfanas.
+- [ ] Bloque con cierre anterior a la apertura, o sin días: no deja guardar y explica por qué.
+- [ ] Tandil: cargar una jornada puntual con fecha y horario, guardar, refrescar: aparece en `jornadas_tandil` (no en `bloques_horarios`).
+- [ ] Tandil, día **sin** jornada: no hay horarios ofrecidos; la semana sin jornadas muestra "Tandil no tiene días de atención esta semana".
+- [ ] Dos jornadas el mismo día de Tandil que se pisan: aviso, no guarda.
+- [ ] Cortar la conexión y guardar horarios: el diálogo **no** se cierra y muestra el error.
+
+**Turnos**
+- [ ] Crear un turno de cada duración (15, 20, 30, 45 y 60 min) y verificar la fila en `turnos` (hora, duración, sede, estado `ocupado`).
+- [ ] Turno que se superpone con otro, o que se pasa del cierre del bloque: la pantalla lo bloquea o limita la duración con mensaje.
+- [ ] Asignar con el buscador de pacientes (por apellido y por DNI).
+- [ ] Editar un turno: cambiar horario, duración y paciente; refrescar y confirmar.
+- [ ] Estados: ocupado → no asistió → reactivar; ocupado → cancelado → reactivar. En Supabase el `estado` cambia (`no_asistio`, `cancelado`).
+- [ ] **"Liberar horario" borra la fila del turno** (no queda historial). Confirmar que es lo que querés; si no, avisar.
+- [ ] Un turno cancelado o "no asistió" sigue bloqueando ese horario hasta liberarlo.
+- [ ] Con la conexión cortada, crear un turno: el diálogo queda abierto con el error y no aparece un turno fantasma.
+- [ ] Turnos de las dos sedes el mismo día y hora: no se afectan entre sí.
+
+**Navegación y vistas**
+- [ ] Moverse varias semanas adelante y atrás: los turnos de cada semana aparecen en su semana y no se mezclan; "Volver a hoy" funciona.
+- [ ] Cantidad "N turnos esta semana" coincide con lo que se ve.
+- [ ] Selector de sede: La Plata (bloques semanales) y Tandil (solo días con jornada) se ven claramente distintos.
+- [ ] Mobile (375px): se ve un día por vez, con selector de día; turnos posicionados por hora con alto proporcional a la duración; los botones se pueden tocar sin errar.
+- [ ] WhatsApp del turno: mensaje con fecha, hora y sede correctas, en el chat del paciente (si tiene teléfono).
+- [ ] Solapa "Próximos turnos" de la ficha: muestra solo turnos **confirmados y futuros** del paciente (no cancelados, no pasados, no de otro paciente); un turno de hoy a una hora ya pasada no aparece.
 
 ## Fase 6 — Trámites pendientes
 
-- [ ] Desde la ficha de un paciente, agregarlo a la lista de obra social.
-- [ ] Agregarlo a facturación.
-- [ ] Agregarlo a ambas listas desde el mismo botón/flujo.
-- [ ] Cada ítem de las listas muestra nombre, mail y fecha de alta.
-- [ ] Marcar un ítem como resuelto: sale de pendientes (o queda marcado como tal, según cómo se haya definido visualmente).
-- [ ] Probar con un paciente que no tiene mail cargado (es opcional en el alta): no rompe la lista ni el ítem.
+- [ ] Desde la ficha, "Agregar a trámites pendientes" → solo obra social: aparece en esa lista (y en `tramites` con `tipo = obra_social`, `estado = pendiente`).
+- [ ] Solo facturación; y ambas a la vez en una sola operación: 2 filas.
+- [ ] Repetir el alta sobre un trámite ya pendiente: la casilla aparece tildada y deshabilitada con "Ya está pendiente", y no se crea fila duplicada.
+- [ ] Cada ítem muestra nombre (con link a la ficha), mail y "Agregado el dd/mm/aaaa" con la fecha correcta de hoy.
+- [ ] Marcar resuelto: pasa al final, tachado; en Supabase `estado = resuelto` y `fecha_resuelto` con valor. "Deshacer" lo vuelve a pendiente y limpia `fecha_resuelto`.
+- [ ] Un paciente resuelto en obra social puede volver a sumarse a esa lista (queda como un trámite nuevo).
+- [ ] Paciente sin mail cargado: el ítem dice "Sin mail cargado" y no rompe.
+- [ ] Refrescar y cerrar/abrir sesión: el estado de cada trámite se conserva.
+- [ ] Con la conexión cortada: el error se ve en pantalla (en la lista, con "Reintentar") y el diálogo de alta no se cierra.
 
 ## Fase 7 — Cierre
 
-- [ ] QA mobile (~375px) completo de los 8 módulos, no solo de los últimos que se tocaron.
-- [ ] Confirmar que el deploy está en Vercel Pro, no Hobby.
-- [ ] `grep` del repo completo por credenciales, URLs de Supabase o keys hardcodeadas — no debe aparecer nada fuera de `.env*`.
-- [ ] Confirmar que `.gitignore` sigue ignorando `.env*` salvo `.env.example`.
-- [ ] Verificar en Supabase que las 11 tablas tienen RLS activo y que el rol `authenticated` tiene los permisos de tabla (SELECT/INSERT/UPDATE/DELETE) — no solo las políticas RLS (ya tuvimos un bug exactamente acá, vale la pena re-chequear al cierre).
+**Producción**
+- [ ] Deploy en **Vercel Pro** (no Hobby), con `VITE_SUPABASE_URL` y `VITE_SUPABASE_ANON_KEY` cargadas en el proyecto.
+- [ ] Entrar por URL directa a `/pacientes`, `/agenda` y `/pacientes/<id>` y recargar (F5): no da 404 (el rewrite de `vercel.json` funciona).
+- [ ] En la app desplegada **no** aparece ningún paciente de ejemplo ni imágenes de relleno, aunque `VITE_USAR_SEED` esté en `true` en el entorno.
+- [ ] Solapa Fotos de un paciente de Armonización facial (si existe uno): muestra "próximamente", sin botones de subir.
+- [ ] Sin sesión, ninguna ruta muestra datos; cerrar sesión y tocar "atrás" no deja entrar.
+
+**Límites de Storage**
+- [ ] Proyecto Supabase en **plan Pro** y "Upload file size limit" global revisado (los límites de la app son 25 MB imagen/PDF y 100 MB video; el del proyecto tiene que ser igual o mayor).
+- [ ] Subir en producción un video cercano a 100 MB desde el celular: sube o muestra un error claro (no queda colgado).
+
+**Seguridad y base**
+- [ ] `grep -rn "supabase.co"` y por claves (`eyJ`, `sb_`) en el repo: solo aparece en `.env.example` (placeholder) y en docs; `.env` sigue ignorado y fuera del historial de git.
+- [ ] Correr `sql/verificar-rls.sql`: las 11 tablas con RLS activo, permisos de `authenticated` (SELECT/INSERT/UPDATE/DELETE) correctos y políticas de los 3 buckets. Sin sesión (rol `anon`) ninguna tabla ni bucket es accesible.
+- [ ] Las URLs de fotos/estudios son firmadas y vencen: abrir una URL vieja (pasada la hora) no muestra el archivo.
+
+**Mobile completo (~375px) de los 8 módulos**
+- [ ] Datos / alta: formularios sin scroll horizontal, teclado correcto (numérico en DNI y montos).
+- [ ] Fotos y Estudios: cámara/galería del celular, subida y vista previa.
+- [ ] Diagnóstico y Presupuesto: textos largos, tabla de cuotas pasa a tarjetas, PDF se descarga.
+- [ ] Seguimiento, Agenda y Trámites: sin elementos cortados ni botones difíciles de tocar.
 
 ---
 

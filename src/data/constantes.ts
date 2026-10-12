@@ -9,6 +9,7 @@ export const COLUMNAS_PACIENTES = {
   apellido: "apellido",
   dni: "dni",
   email: "email",
+  telefono: "telefono",
   ocupacion: "ocupacion",
   fechaNacimiento: "fecha_nacimiento",
   categoria: "categoria",

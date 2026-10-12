@@ -62,6 +62,37 @@ export function soloDigitos(texto: string): string {
   return texto.replace(/\D/g, "")
 }
 
+/**
+ * Número listo para wa.me (sólo dígitos, con código de país), o null si no alcanza.
+ * Asume Argentina cuando no trae código: saca el 0 inicial y el «15», y antepone 549.
+ */
+export function numeroWhatsApp(telefono: string): string | null {
+  // El «15» del celular, tal como se dice de memoria («0221 15 555-0123»), no va en el número internacional.
+  const bloques = telefono.split(/[\s\-.()]+/).filter(Boolean)
+  const sinQuince = bloques.filter((b, i) => !(b === "15" && i > 0 && i < bloques.length - 1))
+  let n = soloDigitos(sinQuince.join(""))
+  // Todo junto, sin separadores («0221155550123»): sin código de país son 10 dígitos + «15».
+  const local = n.replace(/^0+/, "")
+  if (!n.startsWith("54") && local.length === 12) {
+    const posibles = [2, 3, 4].filter((i) => local.slice(i, i + 2) === "15")
+    if (posibles.length === 1) n = local.slice(0, posibles[0]) + local.slice(posibles[0] + 2)
+  }
+  if (n.startsWith("00")) n = n.slice(2)
+  if (n.startsWith("54")) {
+    if (!n.startsWith("549")) n = "549" + n.slice(2)
+  } else {
+    n = "549" + n.replace(/^0+/, "")
+  }
+  // 549 + código de área + abonado: 13 dígitos en total.
+  return n.length >= 12 && n.length <= 14 ? n : null
+}
+
+/** Chat de WhatsApp con el mensaje prellenado; sin número válido abre el selector de contactos. */
+export function enlaceWhatsAppChat(telefono: string, texto: string): string {
+  const numero = numeroWhatsApp(telefono)
+  return `https://wa.me/${numero ?? ""}?text=${encodeURIComponent(texto)}`
+}
+
 export function normalizar(texto: string): string {
   return texto
     .toLowerCase()

@@ -201,8 +201,8 @@ describe("bloquesSuperpuestos", () => {
 })
 
 describe("enlaceWhatsAppTurno", () => {
-  it("arma un wa.me con el mensaje codificado, sin número (envío manual)", () => {
-    const p = { nombre: "Ana" } as Paciente
+  it("arma un wa.me con el mensaje codificado, sin número si el paciente no tiene teléfono", () => {
+    const p = { nombre: "Ana", telefono: "" } as Paciente
     const url = enlaceWhatsAppTurno(p, turno({ fecha: LUN, hora: "14:30", duracion: 45 }))
     expect(url.startsWith("https://wa.me/?text=")).toBe(true)
     const texto = decodeURIComponent(url.split("text=")[1])

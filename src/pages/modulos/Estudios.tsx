@@ -1,21 +1,28 @@
-import { ExternalLink, FileText, Plus, RefreshCw } from "lucide-react"
+import { lazy, Suspense, useState } from "react"
+import { Box, ExternalLink, FileText, Plus, RefreshCw } from "lucide-react"
 
 import { SelectSimple, TituloBloque } from "@/components/campos"
-import { SelectorArchivo } from "@/components/fotos"
+import { BotonBorrar, SelectorArchivo } from "@/components/fotos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { TOPES, type ArchivoClinico, type Etapa, type Origen } from "@/data/archivos"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { TOPES, type ArchivoClinico, type TipoArchivo, type Etapa, type Origen } from "@/data/archivos"
 import { useArchivos, type Archivos } from "@/data/useArchivos"
 import type { Paciente } from "@/lib/tipos"
 import { fechaCorta } from "@/lib/util"
+import { extensionDe, visorDe } from "@/lib/visores"
+
+const Visor3D = lazy(() => import("@/components/Visor3D").then((m) => ({ default: m.Visor3D })))
+
+const TIPOS: TipoArchivo[] = ["imagen", "pdf", "modelo3d"]
 
 interface Props {
   paciente: Paciente
 }
 
-// Tomografías: pendiente. Quedan como un estudio común (imagen o PDF) hasta que Imago
-// confirme el formato; si es DICOM hace falta un visor aparte. No se resuelve acá.
-const ACEPTA = "image/*,application/pdf"
+// Estudios 3D: se asume escaneo intraoral en STL/PLY (formato de Imago SIN confirmar).
+// Si resulta ser DICOM (tomografía) hace falta un visor aparte: ver src/lib/visores.ts.
+const ACEPTA = "image/*,application/pdf,.stl,.ply"
 
 const ETAPAS: { valor: Etapa; etiqueta: string }[] = [
   { valor: "inicial", etiqueta: "Inicial" },
@@ -51,7 +58,7 @@ function Bloque({
               accept={ACEPTA}
               disabled={lleno || subiendoNuevo}
               onArchivo={(file) =>
-                archivos.subir(clave, origen, file, ["imagen", "pdf"], {
+                archivos.subir(clave, origen, file, TIPOS, {
                   etiqueta: file.name,
                   etapa: "inicial",
                 })
@@ -87,6 +94,8 @@ function Bloque({
 function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Archivos }) {
   const nombre = a.etiqueta || (a.tipo === "pdf" ? "Estudio.pdf" : "Imagen")
   const subiendo = archivos.subiendo.includes(a.id)
+  const [viendo, setViendo] = useState(false)
+  const visor = a.url ? visorDe(a.storagePath) : null
 
   return (
     <li className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3">
@@ -94,14 +103,14 @@ function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Arc
         {a.tipo === "imagen" && a.url ? (
           <img src={a.url} alt={nombre} loading="lazy" className="size-full object-cover" />
         ) : (
-          <FileText className="size-5" />
+          a.tipo === "modelo3d" ? <Box className="size-5" /> : <FileText className="size-5" />
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-brand-dark">{nombre}</p>
         <p className="text-xs text-muted-foreground">
-          <span className="uppercase">{a.tipo}</span> · {fechaCorta(a.fecha)}
+          <span className="uppercase">{a.tipo === "modelo3d" ? "3D" : a.tipo}</span> · {fechaCorta(a.fecha)}
         </p>
       </div>
 
@@ -111,6 +120,27 @@ function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Arc
         onCambio={(v) => archivos.actualizar(a, { etapa: v as Etapa })}
         opciones={ETAPAS}
       />
+
+      {visor === "malla3d" && a.url ? (
+        <>
+          <Button type="button" variant="outline" size="sm" onClick={() => setViendo(true)}>
+            <Box className="size-3.5" />
+            Ver en 3D
+          </Button>
+          <Dialog open={viendo} onOpenChange={setViendo}>
+            <DialogContent className="sm:max-w-3xl">
+              <DialogHeader>
+                <DialogTitle>{nombre}</DialogTitle>
+              </DialogHeader>
+              {viendo ? (
+                <Suspense fallback={<p className="py-10 text-center text-sm">Cargando visor…</p>}>
+                  <Visor3D url={a.url} extension={extensionDe(a.storagePath)} />
+                </Suspense>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
 
       {a.url ? (
         <a
@@ -127,12 +157,20 @@ function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Arc
       <SelectorArchivo
         accept={ACEPTA}
         disabled={subiendo}
-        onArchivo={(file) => archivos.reemplazar(a, file, ["imagen", "pdf"])}
+        onArchivo={(file) => archivos.reemplazar(a, file, TIPOS)}
         etiqueta={`Reemplazar ${nombre}`}
         className="rounded-lg p-2.5 text-muted-foreground transition-colors hover:bg-muted hover:text-brand-dark disabled:opacity-50 md:p-2"
       >
         <RefreshCw className="size-5 md:size-4" />
       </SelectorArchivo>
+
+      <BotonBorrar
+        nombre={nombre}
+        disabled={subiendo}
+        onConfirmar={() => archivos.borrar(a)}
+        iconoClassName="size-5 md:size-4"
+        className="rounded-lg p-2.5 text-destructive transition-colors hover:bg-destructive/10 disabled:opacity-50 md:p-2"
+      />
     </li>
   )
 }
@@ -159,13 +197,13 @@ export function Estudios({ paciente }: Props) {
       ) : null}
       <Bloque
         titulo="Radiografías"
-        descripcion="Panorámicas, teleperfiles y periapicales. Imagen o PDF."
+        descripcion="Panorámicas, teleperfiles y periapicales. Imagen, PDF o modelo 3D (STL/PLY)."
         origen="radiografia"
         archivos={archivos}
       />
       <Bloque
         titulo="Estudios complementarios"
-        descripcion="Cefalometrías, periodontogramas, interconsultas. Imagen o PDF."
+        descripcion="Cefalometrías, periodontogramas, interconsultas. Imagen, PDF o modelo 3D (STL/PLY)."
         origen="estudio"
         archivos={archivos}
       />

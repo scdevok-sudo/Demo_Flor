@@ -78,6 +78,19 @@ describe("validarArchivo", () => {
   })
 })
 
+describe("modelos 3D", () => {
+  it("acepta STL y PLY por extensión (sin MIME fiable)", () => {
+    expect(validarArchivo(archivo("arcada.STL", "model/stl"), ["modelo3d"])).toEqual({ ok: true, valor: "modelo3d" })
+    expect(validarArchivo(archivo("arcada.ply", ""), ["imagen", "modelo3d"])).toEqual({ ok: true, valor: "modelo3d" })
+  })
+
+  it("rechaza 3D donde no se permite y respeta el tope de 50 MB", () => {
+    expect(validarArchivo(archivo("a.stl", ""), ["imagen"]).ok).toBe(false)
+    expect(validarArchivo(archivo("a.stl", "", 50 * MB), ["modelo3d"]).ok).toBe(true)
+    expect(validarArchivo(archivo("a.stl", "", 50 * MB + 1), ["modelo3d"]).ok).toBe(false)
+  })
+})
+
 describe("slots", () => {
   it("zonaDeSlot distingue cara de boca", () => {
     expect(zonaDeSlot("perfil-izquierdo")).toBe("cara")

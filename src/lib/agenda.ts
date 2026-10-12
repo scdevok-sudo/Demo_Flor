@@ -1,5 +1,5 @@
 import type { BloqueHorario, ConfigAgenda, Paciente, Sede, Turno } from "@/lib/tipos"
-import { DIAS_LARGO, deISO, fechaConDia, fechaCorta } from "@/lib/util"
+import { DIAS_LARGO, deISO, enlaceWhatsAppChat, fechaConDia, fechaCorta } from "@/lib/util"
 
 /** Los turnos arrancan en múltiplos de este paso. */
 export const PASO_MIN = 15
@@ -100,5 +100,5 @@ export function enlaceWhatsAppTurno(p: Paciente, t: Turno): string {
     "Si necesitás cambiarlo, avisame con tiempo. ¡Saludos!",
     "Flor",
   ].join("\n")
-  return `https://wa.me/?text=${encodeURIComponent(texto)}`
+  return enlaceWhatsAppChat(p.telefono, texto)
 }
