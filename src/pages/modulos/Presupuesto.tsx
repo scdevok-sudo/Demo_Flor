@@ -131,6 +131,9 @@ export function Presupuesto({ paciente, estado, diagnostico }: Props) {
     montoTotal: form.montoTotal,
     condiciones: form.condiciones,
     cuotas,
+    referencia: estado.presupuestoId ?? undefined,
+    duracionEstimada: form.duracionEstimada,
+    mantenimiento: estado.mantenimiento,
   }
 
   const cambiarCantidad = (n: number) => void estado.cambiarCantidad(n)

@@ -1,20 +1,22 @@
 import type { jsPDF } from "jspdf"
 
-import type { Cuota } from "@/data/presupuestos"
+import type { Cuota, RegistroMantenimiento } from "@/data/presupuestos"
 import { esArmonizacion, type Paciente } from "@/lib/tipos"
-import { fechaLarga, formatoDNI, hoyISO, montoARS } from "@/lib/util"
+import { enlaceWhatsAppChat, fechaCorta, fechaLarga, formatoDNI, hoyISO, montoARS } from "@/lib/util"
 
 /** Colores de marca en RGB, para jsPDF. */
 const OSCURO: [number, number, number] = [67, 73, 82] // #434952
 const MEDIO: [number, number, number] = [141, 156, 164] // #8D9CA4
 const CLARO: [number, number, number] = [194, 197, 198] // #C2C5C6
 const CORAL: [number, number, number] = [248, 143, 143] // #F88F8F
-const CORAL_SUAVE: [number, number, number] = [253, 237, 237]
+const FONDO: [number, number, number] = [244, 245, 245] // tinte de #C2C5C6
+const TEXTO: [number, number, number] = [50, 54, 60]
 
 const ANCHO = 210
 const ALTO = 297
 const MARGEN = 18
 const UTIL = ANCHO - MARGEN * 2
+const BASE_PIE = ALTO - 23
 
 /** Lo que el presupuesto toma del diagnóstico y del módulo de pagos. */
 export interface ContenidoPresupuesto {
@@ -24,15 +26,52 @@ export interface ContenidoPresupuesto {
   montoTotal: string
   condiciones: string
   cuotas: Cuota[]
+  /** Id del presupuesto: se muestra abreviado como número de referencia. */
+  referencia?: string
+  duracionEstimada?: string
+  mantenimiento?: RegistroMantenimiento[]
 }
 
 export function nombreArchivo(p: Paciente): string {
   const limpio = `${p.apellido}-${p.nombre}`
     .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[̀-ͯ]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "-")
     .toLowerCase()
   return `presupuesto-${limpio}.pdf`
+}
+
+// Playfair Display hace de Monterchi Serif hasta que haya licencia de la fuente de marca.
+const FUENTES = [
+  { archivo: "PlayfairDisplay-SemiBold.ttf", familia: "Playfair", estilo: "normal" },
+  { archivo: "Montserrat-Regular.ttf", familia: "Montserrat", estilo: "normal" },
+  { archivo: "Montserrat-SemiBold.ttf", familia: "Montserrat", estilo: "bold" },
+] as const
+
+function aBase64(buffer: ArrayBuffer): string {
+  const bytes = new Uint8Array(buffer)
+  let binario = ""
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binario += String.fromCharCode(...bytes.subarray(i, i + 0x8000))
+  }
+  return btoa(binario)
+}
+
+let fuentesCargadas: Promise<string[]> | null = null
+
+/** Descarga (una sola vez) las TTF subseteadas de /public/fonts, en base64. */
+function cargarFuentes(): Promise<string[]> {
+  fuentesCargadas ??= Promise.all(
+    FUENTES.map(async (f) => {
+      const r = await fetch(`${import.meta.env.BASE_URL}fonts/${f.archivo}`)
+      if (!r.ok) throw new Error(`No se pudo cargar la fuente ${f.archivo}`)
+      return aBase64(await r.arrayBuffer())
+    })
+  ).catch((e) => {
+    fuentesCargadas = null
+    throw e
+  })
+  return fuentesCargadas
 }
 
 /**
@@ -40,49 +79,58 @@ export function nombreArchivo(p: Paciente): string {
  * la librería en la carga inicial.
  */
 export async function generarPresupuesto(p: Paciente, c: ContenidoPresupuesto): Promise<jsPDF> {
-  const { jsPDF } = await import("jspdf")
-  const doc = new jsPDF({ unit: "mm", format: "a4" })
+  const [{ jsPDF }, fuentes] = await Promise.all([import("jspdf"), cargarFuentes()])
+  const doc = new jsPDF({ unit: "mm", format: "a4", compress: true })
+  FUENTES.forEach((f, i) => {
+    doc.addFileToVFS(f.archivo, fuentes[i])
+    doc.addFont(f.archivo, f.familia, f.estilo)
+  })
   let y = 0
 
-  // ---- Membrete -----------------------------------------------------------
+  const serif = (tam: number) => {
+    doc.setFont("Playfair", "normal")
+    doc.setFontSize(tam)
+  }
+  const sans = (tam: number, negrita = false) => {
+    doc.setFont("Montserrat", negrita ? "bold" : "normal")
+    doc.setFontSize(tam)
+  }
+
+  // ---- Membrete: isotipo "fi." (punto siempre coral) + datos ----------------
   const dibujarMembrete = () => {
     doc.setFillColor(...OSCURO)
-    doc.rect(0, 0, ANCHO, 36, "F")
-    doc.setFillColor(...CORAL)
-    doc.rect(0, 36, ANCHO, 1.6, "F")
+    doc.rect(0, 0, ANCHO, 30, "F")
 
-    doc.setTextColor(...CORAL)
-    doc.setFont("times", "bold")
-    doc.setFontSize(32)
-    doc.text("fi.", MARGEN, 24)
-
+    serif(30)
     doc.setTextColor(255, 255, 255)
-    doc.setFont("times", "normal")
-    doc.setFontSize(15)
-    doc.text("Florencia Inveninato", MARGEN + 20, 19)
+    doc.text("fi", MARGEN, 20.5)
+    const anchoFi = doc.getTextWidth("fi")
+    doc.setTextColor(...CORAL)
+    doc.text(".", MARGEN + anchoFi, 20.5)
 
+    const xDatos = MARGEN + 24
+    doc.setDrawColor(...MEDIO)
+    doc.setLineWidth(0.2)
+    doc.line(xDatos - 5, 9, xDatos - 5, 22)
+    serif(14)
+    doc.setTextColor(255, 255, 255)
+    doc.text("Florencia Inveninato", xDatos, 14.5)
+    sans(7.5)
     doc.setTextColor(...CLARO)
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(8)
-    doc.text("Ortodoncia y ortopedia maxilar", MARGEN + 20, 24.5)
-    doc.text("La Plata  ·  Tandil", MARGEN + 20, 29)
+    doc.text("Ortodoncia y ortopedia maxilar", xDatos, 19.5)
+    doc.text("La Plata  ·  Tandil", xDatos, 23.5)
 
-    y = 52
+    y = 40
   }
 
   const pie = () => {
     doc.setDrawColor(...CLARO)
     doc.setLineWidth(0.2)
     doc.line(MARGEN, ALTO - 20, ANCHO - MARGEN, ALTO - 20)
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(7.5)
+    sans(7)
     doc.setTextColor(...MEDIO)
-    doc.text(
-      "Presupuesto sin valor de factura. Válido por 30 días desde la fecha de emisión.",
-      MARGEN,
-      ALTO - 15
-    )
-    doc.text("Florencia Inveninato · Ortodoncia", ANCHO - MARGEN, ALTO - 15, { align: "right" })
+    doc.text("Presupuesto sin valor de factura. Válido por 30 días desde la fecha de emisión.", MARGEN, ALTO - 15)
+    doc.text("Florencia Inveninato  ·  La Plata  ·  Tandil", ANCHO - MARGEN, ALTO - 15, { align: "right" })
   }
 
   const nuevaPagina = () => {
@@ -90,85 +138,94 @@ export async function generarPresupuesto(p: Paciente, c: ContenidoPresupuesto): 
     doc.addPage()
     doc.setFillColor(...OSCURO)
     doc.rect(0, 0, ANCHO, 12, "F")
-    doc.setFillColor(...CORAL)
-    doc.rect(0, 12, ANCHO, 1, "F")
-    y = 28
+    serif(11)
+    doc.setTextColor(255, 255, 255)
+    doc.text("fi", MARGEN, 8)
+    const w = doc.getTextWidth("fi")
+    doc.setTextColor(...CORAL)
+    doc.text(".", MARGEN + w, 8)
+    sans(7.5)
+    doc.setTextColor(...CLARO)
+    doc.text("Florencia Inveninato", MARGEN + w + 6, 7.8)
+    y = 26
   }
 
   const espacio = (alto: number) => {
-    if (y + alto > ALTO - 26) nuevaPagina()
+    if (y + alto > BASE_PIE) nuevaPagina()
   }
 
   const titulo = (texto: string) => {
-    espacio(16)
-    doc.setFillColor(...CORAL)
-    doc.rect(MARGEN, y - 3.4, 3, 3.4, "F")
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(9)
+    espacio(14)
+    sans(7.5, true)
     doc.setTextColor(...OSCURO)
-    doc.text(texto.toUpperCase(), MARGEN + 5.5, y)
-    y += 3
+    doc.text(texto.toUpperCase(), MARGEN, y, { charSpace: 0.4 })
+    y += 2
     doc.setDrawColor(...CLARO)
     doc.setLineWidth(0.2)
     doc.line(MARGEN, y, ANCHO - MARGEN, y)
-    y += 6
+    y += 5
   }
 
   const parrafo = (texto: string) => {
+    sans(9)
     const lineas = doc.splitTextToSize(texto || "—", UTIL) as string[]
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(10)
-    doc.setTextColor(50, 54, 60)
+    doc.setTextColor(...TEXTO)
     for (const linea of lineas) {
       espacio(6)
       doc.text(linea, MARGEN, y)
-      y += 5
+      y += 4.8
     }
-    y += 4
+    y += 2.5
   }
 
-  /** Fila de dato con etiqueta chica arriba y valor debajo. */
-  const dato = (etiqueta: string, valor: string, x: number, ancho: number) => {
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(7.5)
+  /** Dato con etiqueta chica arriba y valor debajo. */
+  const dato = (etiqueta: string, valor: string, x: number, yy: number, ancho: number) => {
+    sans(6.5)
     doc.setTextColor(...MEDIO)
-    doc.text(etiqueta.toUpperCase(), x, y)
-    doc.setFont("helvetica", "bold")
-    doc.setFontSize(10)
+    doc.text(etiqueta.toUpperCase(), x, yy, { charSpace: 0.3 })
+    sans(9.5, true)
     doc.setTextColor(...OSCURO)
     const lineas = doc.splitTextToSize(valor || "—", ancho) as string[]
-    doc.text(lineas[0], x, y + 5)
+    doc.text(lineas[0], x, yy + 5.5)
   }
 
   dibujarMembrete()
 
   // ---- Título del documento ----------------------------------------------
-  doc.setFont("times", "bold")
-  doc.setFontSize(21)
+  serif(21)
   doc.setTextColor(...OSCURO)
   doc.text("Presupuesto de tratamiento", MARGEN, y)
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(8.5)
+  sans(8)
   doc.setTextColor(...MEDIO)
-  doc.text(fechaLarga(hoyISO()), ANCHO - MARGEN, y, { align: "right" })
-  y += 12
+  doc.text(fechaLarga(hoyISO()), ANCHO - MARGEN, y - 4, { align: "right" })
+  if (c.referencia) {
+    sans(8, true)
+    doc.setTextColor(...OSCURO)
+    doc.text(`Ref. Nº ${c.referencia.replace(/-/g, "").slice(0, 8).toUpperCase()}`, ANCHO - MARGEN, y + 1, { align: "right" })
+  }
+  doc.setFillColor(...CORAL)
+  doc.rect(MARGEN, y + 3.5, 14, 0.9, "F")
+  y += 14
 
   // ---- Datos del paciente -------------------------------------------------
   titulo("Paciente")
   const col = UTIL / 3
-  dato("Nombre y apellido", `${p.nombre} ${p.apellido}`, MARGEN, col - 4)
-  dato("DNI", formatoDNI(p.dni), MARGEN + col, col - 4)
-  dato("Edad", p.edad ? `${p.edad} años` : "—", MARGEN + col * 2, col - 4)
-  y += 13
-  dato("Tratamiento", p.categoria, MARGEN, col - 4)
-  dato("Sede", p.sede, MARGEN + col, col - 4)
+  doc.setFillColor(...FONDO)
+  doc.roundedRect(MARGEN, y - 4, UTIL, 24, 2, 2, "F")
+  const x0 = MARGEN + 5
+  dato("Nombre y apellido", `${p.nombre} ${p.apellido}`, x0, y + 1, col - 6)
+  dato("DNI", formatoDNI(p.dni), x0 + col, y + 1, col - 6)
+  dato("Edad", p.edad ? `${p.edad} años` : "—", x0 + col * 2, y + 1, col - 6)
+  dato("Tratamiento", p.categoria, x0, y + 11, col - 6)
+  dato("Sede", p.sede, x0 + col, y + 11, col - 6)
   dato(
     "Cobertura",
     esArmonizacion(p.categoria) ? "Particular" : p.obraSocial || "Particular",
-    MARGEN + col * 2,
-    col - 4
+    x0 + col * 2,
+    y + 11,
+    col - 6
   )
-  y += 15
+  y += 30
 
   // ---- Clínica ------------------------------------------------------------
   titulo("Diagnóstico")
@@ -183,62 +240,150 @@ export async function generarPresupuesto(p: Paciente, c: ContenidoPresupuesto): 
     parrafo(c.tecnica)
   }
 
-  // ---- Monto --------------------------------------------------------------
-  espacio(34)
-  doc.setFillColor(...CORAL_SUAVE)
-  doc.setDrawColor(...CORAL)
-  doc.setLineWidth(0.4)
-  doc.roundedRect(MARGEN, y, UTIL, 24, 2.5, 2.5, "FD")
-  doc.setFont("helvetica", "normal")
-  doc.setFontSize(8)
-  doc.setTextColor(...OSCURO)
-  doc.text("MONTO TOTAL DEL TRATAMIENTO", MARGEN + 8, y + 9)
-  doc.setFont("times", "bold")
-  doc.setFontSize(22)
-  doc.text(montoARS(c.montoTotal), MARGEN + 8, y + 18.5)
-
+  // ---- Inversión y saldo --------------------------------------------------
   const total = Number(c.montoTotal) || 0
-  const pagas = c.cuotas.filter((c) => c.efectuado).length
-  if (pagas > 0) {
-    doc.setFont("helvetica", "normal")
-    doc.setFontSize(8)
+  const cantidad = c.cuotas.length
+  const valorCuota = cantidad > 0 ? Math.round(total / cantidad) : 0
+  const pagas = c.cuotas.filter((q) => q.efectuado).length
+  const mantenimiento = [...(c.mantenimiento ?? [])].sort((a, b) => a.fecha.localeCompare(b.fecha))
+
+  // Abonado y saldo salen de las cuotas y del mantenimiento registrado. El saldo de las
+  // cuotas es el total menos lo abonado, así el redondeo de la cuota no deja centavos sueltos.
+  const abonadoCuotas = Math.min(total, valorCuota * pagas)
+  const saldoCuotas = Math.max(0, total - abonadoCuotas)
+  const montoMant = (m: RegistroMantenimiento) => Number(m.monto) || 0
+  const abonadoMant = mantenimiento.filter((m) => m.efectuado).reduce((s, m) => s + montoMant(m), 0)
+  const saldoMant = mantenimiento.filter((m) => !m.efectuado).reduce((s, m) => s + montoMant(m), 0)
+  const abonado = abonadoCuotas + abonadoMant
+  const saldo = saldoCuotas + saldoMant
+  const hayMantenimiento = abonadoMant + saldoMant > 0
+
+  titulo("Inversión")
+  espacio(26)
+  const altoCaja = 21
+  doc.setFillColor(...FONDO)
+  doc.roundedRect(MARGEN, y - 4, UTIL, altoCaja, 2, 2, "F")
+  doc.setFillColor(...CORAL)
+  doc.rect(MARGEN, y - 4, 1.4, altoCaja, "F")
+
+  const bloque = (etiqueta: string, valor: string, x: number, destacado: boolean) => {
+    sans(6.5)
+    doc.setTextColor(...MEDIO)
+    doc.text(etiqueta.toUpperCase(), x, y + 1, { charSpace: 0.3 })
+    serif(destacado ? 17 : 13)
     doc.setTextColor(...OSCURO)
-    doc.text(`${pagas} de ${c.cuotas.length} cuotas abonadas`, ANCHO - MARGEN - 8, y + 16, { align: "right" })
+    doc.text(valor, x, y + 10.5)
   }
-  y += 34
+  const colInv = (UTIL - 8) / 3
+  bloque("Monto total del tratamiento", montoARS(c.montoTotal), MARGEN + 7, true)
+  bloque("Total abonado", abonado > 0 ? montoARS(abonado) : "$ 0", MARGEN + 7 + colInv + 6, false)
+  bloque("Saldo pendiente", saldo > 0 ? montoARS(saldo) : "$ 0", MARGEN + 7 + colInv * 2 + 6, false)
+  // Separadores finos entre los tres bloques.
+  doc.setDrawColor(...CLARO)
+  doc.setLineWidth(0.2)
+  doc.line(MARGEN + 7 + colInv + 1, y - 0.5, MARGEN + 7 + colInv + 1, y + 11)
+  doc.line(MARGEN + 7 + colInv * 2 + 1, y - 0.5, MARGEN + 7 + colInv * 2 + 1, y + 11)
 
-  // ---- Condiciones --------------------------------------------------------
-  titulo("Condiciones")
-  parrafo(c.condiciones)
+  const detalle: string[] = []
+  if (total > 0 && cantidad > 0) detalle.push(`${cantidad} ${cantidad === 1 ? "cuota" : "cuotas"} de ${montoARS(valorCuota)}`)
+  if (c.duracionEstimada) detalle.push(`Duración estimada: ${c.duracionEstimada}`)
+  sans(7.5)
+  doc.setTextColor(...TEXTO)
+  doc.text(detalle.join("   ·   "), MARGEN + 7, y + 15.5)
+  y += altoCaja + 1
+  if (hayMantenimiento) {
+    sans(6.5)
+    doc.setTextColor(...MEDIO)
+    doc.text("Total abonado y saldo pendiente incluyen el mantenimiento mensual registrado.", MARGEN, y + 1)
+    y += 3
+  }
+  y += 5
 
-  // ---- Plan de pagos ------------------------------------------------------
-  // Columnas de 4 cuotas (hasta 8: dos columnas) para que entren en una sola página.
-  if (total > 0 && c.cuotas.length > 0) {
-    const filas = 4
-    const anchoCol = UTIL / Math.max(2, Math.ceil(c.cuotas.length / filas))
-    // Se reserva el bloque entero antes del título, para que no quede huérfano.
-    espacio(16 + filas * 5.4 + 4)
-    titulo("Plan de pagos")
-    const base = y
+  // ---- Tablas -------------------------------------------------------------
+  type Columna = { texto: string; x: number; align: "left" | "right" }
+  const FILA = 5.8
 
-    c.cuotas.forEach((cuota, i) => {
-      const x = MARGEN + Math.floor(i / filas) * anchoCol
-      const yCuota = base + (i % filas) * 5.4
+  /** Reserva el título + la tabla entera (si es corta) para que el título no quede huérfano. */
+  const tituloTabla = (texto: string, filas: number) => {
+    espacio(14 + 7 + FILA * (filas <= 12 ? filas : 3))
+    titulo(texto)
+  }
 
-      doc.setFont("helvetica", cuota.efectuado ? "bold" : "normal")
-      doc.setFontSize(8)
-      if (cuota.efectuado) doc.setTextColor(50, 54, 60)
-      else doc.setTextColor(...MEDIO)
-      doc.text(
-        `Cuota ${cuota.mes} · ${cuota.medio} · ${
-          cuota.efectuado ? "abonada" : "pendiente"
-        }`,
-        x,
-        yCuota
-      )
+  const tabla = (columnas: Columna[], filas: { celdas: string[]; hecho: boolean }[]) => {
+    const cabecera = () => {
+      doc.setFillColor(...OSCURO)
+      doc.roundedRect(MARGEN, y - 4.2, UTIL, 6.6, 1.2, 1.2, "F")
+      sans(6.5, true)
+      doc.setTextColor(255, 255, 255)
+      for (const col of columnas) {
+        doc.text(col.texto.toUpperCase(), col.x, y + 0.1, { align: col.align, charSpace: 0.3 })
+      }
+      y += 6.6
+    }
+    cabecera()
+    filas.forEach((fila, i) => {
+      if (y + FILA > BASE_PIE) {
+        nuevaPagina()
+        cabecera()
+      }
+      if (i % 2 === 0) {
+        doc.setFillColor(...FONDO)
+        doc.rect(MARGEN, y - 4, UTIL, FILA, "F")
+      }
+      fila.celdas.forEach((texto, j) => {
+        const esEstado = j === columnas.length - 1
+        sans(8, fila.hecho && esEstado)
+        if (esEstado) doc.setTextColor(...(fila.hecho ? OSCURO : MEDIO))
+        else doc.setTextColor(...TEXTO)
+        doc.text(texto, columnas[j].x, y, { align: columnas[j].align })
+      })
+      y += FILA
     })
+    y += 2.5
+  }
 
-    y = base + filas * 5.4 + 4
+  if (total > 0 && cantidad > 0) {
+    tituloTabla("Plan de pagos", cantidad)
+    tabla(
+      [
+        { texto: "Cuota", x: MARGEN + 5, align: "left" },
+        { texto: "Vencimiento", x: MARGEN + 30, align: "left" },
+        { texto: "Medio de pago", x: MARGEN + 76, align: "left" },
+        { texto: "Valor", x: MARGEN + 138, align: "right" },
+        { texto: "Estado", x: ANCHO - MARGEN - 5, align: "right" },
+      ],
+      c.cuotas.map((q) => ({
+        celdas: [
+          `${q.mes} de ${cantidad}`,
+          q.vencimiento ? fechaCorta(q.vencimiento) : "—",
+          q.medio,
+          montoARS(valorCuota),
+          q.efectuado ? "Abonada" : "Pendiente",
+        ],
+        hecho: q.efectuado,
+      }))
+    )
+  }
+
+  if (mantenimiento.length > 0) {
+    tituloTabla("Mantenimiento mensual", mantenimiento.length)
+    tabla(
+      [
+        { texto: "Fecha", x: MARGEN + 5, align: "left" },
+        { texto: "Monto", x: MARGEN + 138, align: "right" },
+        { texto: "Estado", x: ANCHO - MARGEN - 5, align: "right" },
+      ],
+      mantenimiento.map((m) => ({
+        celdas: [fechaLarga(m.fecha), montoARS(m.monto), m.efectuado ? "Abonado" : "Pendiente"],
+        hecho: m.efectuado,
+      }))
+    )
+  }
+
+  // ---- Condiciones de pago ------------------------------------------------
+  if (c.condiciones.trim()) {
+    titulo("Condiciones de pago")
+    parrafo(c.condiciones)
   }
 
   pie()
@@ -301,5 +446,5 @@ export function mensajeWhatsApp(p: Paciente, c: ContenidoPresupuesto): string {
 }
 
 export function enlaceWhatsApp(p: Paciente, c: ContenidoPresupuesto): string {
-  return `https://wa.me/?text=${encodeURIComponent(mensajeWhatsApp(p, c))}`
+  return enlaceWhatsAppChat(p.telefono, mensajeWhatsApp(p, c))
 }

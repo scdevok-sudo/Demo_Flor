@@ -26,6 +26,8 @@ export interface Cuota {
   mes: number
   medio: MedioPago
   efectuado: boolean
+  /** AAAA-MM-DD, columna `fecha` de `cuotas`; vacío si no se cargó. */
+  vencimiento: string
 }
 
 /** Pago mensual de mantenimiento: el monto lo escribe Florencia a mano. */
@@ -94,6 +96,7 @@ function aCuota(f: Fila): Cuota {
     mes: Number(f[CC.numeroCuota]),
     medio: MEDIO_DE_DB[texto(f[CC.metodoPago])] ?? "Transferencia",
     efectuado: f[CC.estado] === "efectuado",
+    vencimiento: texto(f[CC.fecha]).slice(0, 10),
   }
 }
 

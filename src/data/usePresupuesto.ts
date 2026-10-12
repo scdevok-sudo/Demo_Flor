@@ -19,6 +19,7 @@ const borrador = (cantidad: number): Cuota[] =>
     mes: i + 1,
     medio: MEDIO_INICIAL,
     efectuado: false,
+    vencimiento: "",
   }))
 
 const mismosDatos = (a: DatosPresupuesto, b: DatosPresupuesto) =>
@@ -144,6 +145,7 @@ export function usePresupuesto(pacienteId: string) {
     editar: (cambios: Partial<DatosPresupuesto>) => setForm((f) => ({ ...f, ...cambios })),
     hayCambios,
     existe: pres !== null,
+    presupuestoId: pres?.id ?? null,
     cuotas,
     minimoCuotas,
     mantenimiento,
