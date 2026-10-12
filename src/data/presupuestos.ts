@@ -8,6 +8,7 @@ import {
 } from "@/data/constantes"
 import { supabase } from "@/lib/supabase"
 import { type MedioPago } from "@/lib/tipos"
+import { sumarMeses } from "@/lib/util"
 
 /** Campos propios del presupuesto. Los montos van como texto de dígitos, igual que los inputs. */
 export interface DatosPresupuesto {
@@ -26,8 +27,10 @@ export interface Cuota {
   mes: number
   medio: MedioPago
   efectuado: boolean
-  /** AAAA-MM-DD, columna `fecha` de `cuotas`; vacío si no se cargó. */
+  /** AAAA-MM-DD, columna `fecha_vencimiento`; vacío si no se cargó. */
   vencimiento: string
+  /** AAAA-MM-DD en que se cobró; vacío si está pendiente. */
+  fechaPago: string
 }
 
 /** Pago mensual de mantenimiento: el monto lo escribe Florencia a mano. */
@@ -96,7 +99,8 @@ function aCuota(f: Fila): Cuota {
     mes: Number(f[CC.numeroCuota]),
     medio: MEDIO_DE_DB[texto(f[CC.metodoPago])] ?? "Transferencia",
     efectuado: f[CC.estado] === "efectuado",
-    vencimiento: texto(f[CC.fecha]).slice(0, 10),
+    vencimiento: texto(f[CC.vencimiento]).slice(0, 10),
+    fechaPago: texto(f[CC.fecha]).slice(0, 10),
   }
 }
 
@@ -220,6 +224,10 @@ export async function ajustarCuotas(
       [CC.monto]: porCuota,
       [CC.metodoPago]: MEDIO_A_DB[medioInicial],
       [CC.estado]: "pendiente",
+      // Las cuotas nuevas siguen el ritmo mensual de la primera, si ya tiene vencimiento.
+      [CC.vencimiento]: actuales[0]?.vencimiento
+        ? sumarMeses(actuales[0].vencimiento, actuales.length + i)
+        : null,
     }))
     const r = await supabase.from(TABLA_CUOTAS).insert(filas)
     if (r.error) return { ok: false, error: ERROR_GUARDAR }
@@ -253,6 +261,31 @@ export async function actualizarCuota(
     .single()
   if (error) return { ok: false, error: ERROR_GUARDAR }
   return { ok: true, valor: aCuota(data as Fila) }
+}
+
+/** Fija el vencimiento de una cuota ("" lo borra). No toca la fecha de cobro. */
+export async function actualizarVencimiento(cuota: Cuota, fecha: string): Promise<Resultado<Cuota>> {
+  const { data, error } = await supabase
+    .from(TABLA_CUOTAS)
+    .update({ [CC.vencimiento]: aNull(fecha) })
+    .eq(CC.id, cuota.id)
+    .select()
+    .single()
+  if (error) return { ok: false, error: ERROR_GUARDAR }
+  return { ok: true, valor: aCuota(data as Fila) }
+}
+
+/** Vencimiento de la cuota 1 = `primera`; las demás, un mes después de la anterior. */
+export async function fijarVencimientos(cuotas: Cuota[], primera: string): Promise<Resultado<Cuota[]>> {
+  const resultados = await Promise.all(
+    cuotas.map((c) => actualizarVencimiento(c, primera ? sumarMeses(primera, c.mes - 1) : ""))
+  )
+  const lista: Cuota[] = []
+  for (const r of resultados) {
+    if (!r.ok) return r
+    lista.push(r.valor)
+  }
+  return { ok: true, valor: lista }
 }
 
 export async function agregarMantenimiento(

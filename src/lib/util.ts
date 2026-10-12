@@ -29,6 +29,18 @@ export function fechaLarga(iso: string): string {
   return `${Number(d)} de ${MESES[Number(m) - 1]} de ${a}`
 }
 
+/** Suma meses a AAAA-MM-DD; si el día no existe en el mes destino (31 -> febrero) usa el último. */
+export function sumarMeses(iso: string, meses: number): string {
+  const [a, m, d] = iso.split("-").map(Number)
+  if (!a || !m || !d) return ""
+  const idx = a * 12 + (m - 1) + meses
+  const anio = Math.floor(idx / 12)
+  const mes = (idx % 12) + 1
+  const ultimo = new Date(anio, mes, 0).getDate()
+  const dos = (n: number) => String(n).padStart(2, "0")
+  return `${anio}-${dos(mes)}-${dos(Math.min(d, ultimo))}`
+}
+
 export function nombreMes(n: number): string {
   return MESES[(n - 1) % 12]
 }

@@ -78,7 +78,9 @@ export const COLUMNAS_CUOTAS = {
   monto: "monto",
   metodoPago: "metodo_pago",
   estado: "estado",
+  /** Fecha de cobro: se guarda al marcar la cuota como cobrada. */
   fecha: "fecha",
+  vencimiento: "fecha_vencimiento",
 } as const
 
 export const TABLA_MANTENIMIENTO = "mantenimiento_registros"

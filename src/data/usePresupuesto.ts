@@ -20,6 +20,7 @@ const borrador = (cantidad: number): Cuota[] =>
     medio: MEDIO_INICIAL,
     efectuado: false,
     vencimiento: "",
+    fechaPago: "",
   }))
 
 const mismosDatos = (a: DatosPresupuesto, b: DatosPresupuesto) =>
@@ -112,6 +113,25 @@ export function usePresupuesto(pacienteId: string) {
       setPres({ ...base, cuotas: base.cuotas.map((c) => (c.id === cuota.id ? r.valor : c)) })
     })
 
+  const fijarPrimeraCuota = (fecha: string) =>
+    correr(async () => {
+      const base = await asegurar()
+      if (!base) return
+      const r = await datos.fijarVencimientos(base.cuotas, fecha)
+      if (!r.ok) return setError(r.error)
+      setPres({ ...base, cuotas: r.valor })
+    })
+
+  const cambiarVencimiento = (mes: number, fecha: string) =>
+    correr(async () => {
+      const base = await asegurar()
+      const cuota = base?.cuotas.find((c) => c.mes === mes)
+      if (!base || !cuota) return
+      const r = await datos.actualizarVencimiento(cuota, fecha)
+      if (!r.ok) return setError(r.error)
+      setPres({ ...base, cuotas: base.cuotas.map((c) => (c.id === cuota.id ? r.valor : c)) })
+    })
+
   const agregarMantenimiento = (fecha: string, monto: string) =>
     correr(async () => {
       const base = await asegurar()
@@ -155,6 +175,8 @@ export function usePresupuesto(pacienteId: string) {
     guardarDatos,
     cambiarCantidad,
     actualizarCuota,
+    fijarPrimeraCuota,
+    cambiarVencimiento,
     agregarMantenimiento,
     actualizarMantenimiento,
     borrarMantenimiento,

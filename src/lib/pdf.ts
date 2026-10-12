@@ -358,7 +358,7 @@ export async function generarPresupuesto(p: Paciente, c: ContenidoPresupuesto): 
           q.vencimiento ? fechaCorta(q.vencimiento) : "—",
           q.medio,
           montoARS(valorCuota),
-          q.efectuado ? "Abonada" : "Pendiente",
+          q.efectuado ? (q.fechaPago ? `Abonada ${fechaCorta(q.fechaPago)}` : "Abonada") : "Pendiente",
         ],
         hecho: q.efectuado,
       }))

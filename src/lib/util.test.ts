@@ -18,6 +18,7 @@ import {
   normalizar,
   soloDigitos,
   sumarDias,
+  sumarMeses,
 } from "@/lib/util"
 
 describe("DNI", () => {
@@ -207,5 +208,19 @@ describe("numeroWhatsApp / enlaceWhatsAppChat", () => {
   it("arma el enlace al chat, o sin número si no hay teléfono válido", () => {
     expect(enlaceWhatsAppChat("221 555-0123", "Hola")).toBe("https://wa.me/5492215550123?text=Hola")
     expect(enlaceWhatsAppChat("", "Hola")).toBe("https://wa.me/?text=Hola")
+  })
+})
+
+describe("sumarMeses", () => {
+  it("avanza meses y cruza de año", () => {
+    expect(sumarMeses("2026-10-10", 0)).toBe("2026-10-10")
+    expect(sumarMeses("2026-10-10", 3)).toBe("2027-01-10")
+  })
+  it("ajusta al último día cuando el día no existe", () => {
+    expect(sumarMeses("2026-01-31", 1)).toBe("2026-02-28")
+    expect(sumarMeses("2028-01-31", 1)).toBe("2028-02-29")
+  })
+  it("fecha inválida devuelve vacío", () => {
+    expect(sumarMeses("", 1)).toBe("")
   })
 })

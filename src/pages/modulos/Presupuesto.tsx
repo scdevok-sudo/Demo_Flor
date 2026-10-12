@@ -87,9 +87,11 @@ interface Props {
 function FilaCuota({
   cuota,
   onCambio,
+  onVencimiento,
 }: {
   cuota: Cuota
   onCambio: (cambios: Partial<Cuota>) => void
+  onVencimiento: (fecha: string) => void
 }) {
   return (
     <div
@@ -101,6 +103,13 @@ function FilaCuota({
       <p className="min-w-0 flex-1 text-sm font-medium text-brand-dark">
         Cuota <span className="tabular-nums">{cuota.mes}</span>
       </p>
+      <Input
+        type="date"
+        className="h-9 w-36 shrink-0 bg-card"
+        aria-label={`Vencimiento de la cuota ${cuota.mes}`}
+        value={cuota.vencimiento}
+        onChange={(e) => onVencimiento(e.target.value)}
+      />
       <SelectSimple
         className="w-30 shrink-0 bg-card"
         valor={cuota.medio}
@@ -137,6 +146,8 @@ export function Presupuesto({ paciente, estado, diagnostico }: Props) {
   }
 
   const cambiarCantidad = (n: number) => void estado.cambiarCantidad(n)
+
+  const setVencimiento = (mes: number, fecha: string) => void estado.cambiarVencimiento(mes, fecha)
 
   const setCuota = (mes: number, cambios: Partial<Pick<Cuota, "medio" | "efectuado">>) =>
     void estado.actualizarCuota(mes, cambios)
@@ -298,12 +309,26 @@ export function Presupuesto({ paciente, estado, diagnostico }: Props) {
             />
           </Campo>
 
+          <Campo
+            etiqueta="Fecha de la primera cuota"
+            nota="Las demás vencen una por mes desde esta fecha; después podés ajustar cada una."
+            className="max-w-64"
+          >
+            <Input
+              className="h-10"
+              type="date"
+              value={cuotas[0]?.vencimiento ?? ""}
+              onChange={(e) => void estado.fijarPrimeraCuota(e.target.value)}
+            />
+          </Campo>
+
           {/* Tabla — escritorio */}
           <div className="hidden overflow-hidden rounded-xl border border-border md:block">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead className="pl-4">Cuota</TableHead>
+                  <TableHead>Vencimiento</TableHead>
                   <TableHead>Medio de pago</TableHead>
                   <TableHead className="pr-4 text-right">Estado</TableHead>
                 </TableRow>
@@ -315,6 +340,15 @@ export function Presupuesto({ paciente, estado, diagnostico }: Props) {
                       <span className="font-medium text-brand-dark">
                         Cuota <span className="tabular-nums">{c.mes}</span>
                       </span>
+                    </TableCell>
+                    <TableCell className="py-2.5">
+                      <Input
+                        type="date"
+                        className="h-8 w-40"
+                        aria-label={`Vencimiento de la cuota ${c.mes}`}
+                        value={c.vencimiento}
+                        onChange={(e) => setVencimiento(c.mes, e.target.value)}
+                      />
                     </TableCell>
                     <TableCell className="py-2.5">
                       <SelectSimple
@@ -352,6 +386,7 @@ export function Presupuesto({ paciente, estado, diagnostico }: Props) {
                 key={c.mes}
                 cuota={c}
                 onCambio={(cambios) => setCuota(c.mes, cambios)}
+                onVencimiento={(fecha) => setVencimiento(c.mes, fecha)}
               />
             ))}
           </div>
