@@ -60,9 +60,18 @@ function Serie({
       <div
         className={cn(
           "grid gap-2.5 sm:gap-3",
+          // Tablet y notebook: 4 de cara en una fila, 6 de boca en una fila (3+3 en tablet vertical).
           comparar
-            ? "grid-cols-1 gap-4 min-[520px]:grid-cols-2 sm:gap-3 lg:grid-cols-3"
-            : "grid-cols-2 min-[440px]:grid-cols-3 lg:grid-cols-5"
+            ? cn(
+                "grid-cols-1 gap-4 min-[520px]:grid-cols-2 sm:gap-3",
+                slots.length === 6 && "lg:grid-cols-3"
+              )
+            : cn(
+                "grid-cols-2 min-[440px]:grid-cols-3",
+                slots.length === 4 && "md:grid-cols-4",
+                slots.length === 6 && "lg:grid-cols-6",
+                slots.length !== 4 && slots.length !== 6 && "lg:grid-cols-5"
+              )
         )}
       >
         {slots.map((s) => {
@@ -88,6 +97,7 @@ function Serie({
               etiqueta={s.etiqueta}
               accept={ACEPTA_MEDIA}
               subiendo={archivos.subiendo.includes(archivo?.id ?? `${origen}:${s.id}`)}
+              convirtiendo={archivos.convirtiendo.includes(archivo?.id ?? `${origen}:${s.id}`)}
               onArchivo={(file) => subirSlot(s.id, archivo, file)}
               onBorrar={archivos.borrar}
             />
@@ -127,6 +137,7 @@ function TileFechado({ archivo, archivos }: { archivo: ArchivoClinico; archivos:
   const [nota, setNota] = useState(archivo.etiqueta ?? "")
   const esVideo = archivo.tipo === "video"
   const subiendo = archivos.subiendo.includes(archivo.id)
+  const convirtiendo = archivos.convirtiendo.includes(archivo.id)
 
   function guardarNota() {
     const limpia = nota.trim()
@@ -159,7 +170,7 @@ function TileFechado({ archivo, archivos }: { archivo: ArchivoClinico; archivos:
         </span>
         {subiendo ? (
           <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-xs font-medium text-brand-dark">
-            Subiendo…
+            {convirtiendo ? "Convirtiendo…" : "Subiendo…"}
           </div>
         ) : null}
       </div>
@@ -254,13 +265,15 @@ export function Fotos({ paciente }: Props) {
           />
 
           {archivos.subiendo.some((c) => c.startsWith("intra:")) ? (
-            <p className="text-xs text-muted-foreground">Subiendo archivo…</p>
+            <p className="text-xs text-muted-foreground">
+              {archivos.convirtiendo.some((c) => c.startsWith("intra:")) ? "Convirtiendo imagen…" : "Subiendo archivo…"}
+            </p>
           ) : null}
 
           {intra.length === 0 ? (
             <Vacio texto="Todavía no hay fotos de control cargadas." />
           ) : (
-            <div className="grid grid-cols-2 gap-2.5 min-[440px]:grid-cols-3 sm:gap-3 lg:grid-cols-5">
+            <div className="grid grid-cols-2 gap-2.5 min-[440px]:grid-cols-3 sm:gap-3 md:grid-cols-4 lg:grid-cols-5">
               {[...intra].reverse().map((a) => (
                 <TileFechado key={a.id} archivo={a} archivos={archivos} />
               ))}

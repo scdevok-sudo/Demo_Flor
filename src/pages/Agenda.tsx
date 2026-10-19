@@ -319,8 +319,9 @@ export function Agenda() {
           {/* Semana — escritorio */}
           <div className="hidden overflow-x-auto rounded-xl border border-border bg-card p-3 md:block">
             <div
-              className="grid items-start gap-3"
-              style={{ gridTemplateColumns: `repeat(${dias.length}, minmax(11rem, 1fr))` }}
+              // Ancho mínimo por día: tablet vertical ~3-4 días con scroll, tablet horizontal la semana entera.
+              className="grid items-start gap-3 [--col:10rem] lg:[--col:9rem] xl:[--col:11rem]"
+              style={{ gridTemplateColumns: `repeat(${dias.length}, minmax(var(--col), 1fr))` }}
             >
               {dias.map(({ dia, fecha, iso }) => (
                 <div key={iso} className="space-y-2">

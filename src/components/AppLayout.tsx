@@ -14,7 +14,7 @@ const NAV = [
 
 function enlaceClases(activo: boolean) {
   return cn(
-    "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+    "flex items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors xl:justify-start",
     activo
       ? "bg-brand-coral text-[#3A3F47]"
       : "text-white/70 hover:bg-white/10 hover:text-white"
@@ -26,26 +26,38 @@ export function AppLayout() {
 
   return (
     <div className="flex min-h-svh flex-col md:flex-row">
-      {/* Barra lateral — escritorio */}
-      <aside className="bg-sidebar sticky top-0 hidden h-svh w-60 shrink-0 flex-col justify-between px-4 py-6 md:flex">
+      {/* Barra lateral — tablet: sólo íconos; notebook (xl): con textos */}
+      <aside className="bg-sidebar sticky top-0 hidden h-svh w-16 shrink-0 flex-col justify-between px-2 py-6 md:flex xl:w-60 xl:px-4">
         <div>
-          <Firma className="px-1" />
+          <div className="hidden xl:block">
+            <Firma className="px-1" />
+          </div>
+          <div className="text-center xl:hidden">
+            <Isotipo className="text-2xl" />
+          </div>
           <nav className="mt-9 space-y-1">
             {NAV.map(({ a, etiqueta, icono: Icono, exacto }) => (
-              <NavLink key={a} to={a} end={exacto} className={({ isActive }) => enlaceClases(isActive)}>
-                <Icono className="size-4" />
-                {etiqueta}
+              <NavLink
+                key={a}
+                to={a}
+                end={exacto}
+                title={etiqueta}
+                aria-label={etiqueta}
+                className={({ isActive }) => enlaceClases(isActive)}
+              >
+                <Icono className="size-5 shrink-0 xl:size-4" />
+                <span className="hidden xl:inline">{etiqueta}</span>
               </NavLink>
             ))}
           </nav>
         </div>
 
         <div className="space-y-3 border-t border-white/10 pt-4">
-          <div className="flex items-center gap-2.5 px-1">
+          <div className="flex items-center justify-center gap-2.5 xl:justify-start xl:px-1">
             <div className="bg-brand-coral flex size-9 shrink-0 items-center justify-center rounded-full text-sm font-semibold text-[#3A3F47]">
               FI
             </div>
-            <div className="min-w-0">
+            <div className="hidden min-w-0 xl:block">
               <p className="truncate text-sm font-medium text-white">Dra. F. Inveninato</p>
               <p className="truncate text-xs text-white/50">Ortodoncista</p>
             </div>
@@ -53,10 +65,12 @@ export function AppLayout() {
           <button
             type="button"
             onClick={() => void salir()}
-            className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white"
+            title="Salir"
+            aria-label="Salir"
+            className="flex w-full items-center justify-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium text-white/60 transition-colors hover:bg-white/10 hover:text-white xl:justify-start"
           >
-            <LogOut className="size-4" />
-            Salir
+            <LogOut className="size-5 shrink-0 xl:size-4" />
+            <span className="hidden xl:inline">Salir</span>
           </button>
         </div>
       </aside>

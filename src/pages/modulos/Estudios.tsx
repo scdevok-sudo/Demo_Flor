@@ -46,6 +46,7 @@ function Bloque({
   const lleno = lista.length >= max
   const clave = `${origen}:nuevo`
   const subiendoNuevo = archivos.subiendo.includes(clave)
+  const convirtiendoNuevo = archivos.convirtiendo.includes(clave)
 
   return (
     <Card>
@@ -66,7 +67,7 @@ function Bloque({
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
             >
               <Plus className="size-3.5" />
-              {subiendoNuevo ? "Subiendo…" : "Agregar"}
+              {convirtiendoNuevo ? "Convirtiendo…" : subiendoNuevo ? "Subiendo…" : "Agregar"}
             </SelectorArchivo>
           }
         />
@@ -128,7 +129,7 @@ function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Arc
             Ver en 3D
           </Button>
           <Dialog open={viendo} onOpenChange={setViendo}>
-            <DialogContent className="sm:max-w-3xl">
+            <DialogContent className="sm:max-w-[min(48rem,calc(100%-2rem))]">
               <DialogHeader>
                 <DialogTitle>{nombre}</DialogTitle>
               </DialogHeader>

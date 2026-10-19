@@ -78,6 +78,17 @@ describe("validarArchivo", () => {
   })
 })
 
+describe("archivos de iPhone", () => {
+  it("HEIC/HEIF con MIME es imagen válida", () => {
+    expect(validarArchivo(archivo("IMG_1.HEIC", "image/heic"), ["imagen"])).toEqual({ ok: true, valor: "imagen" })
+    expect(validarArchivo(archivo("IMG_2.heif", "image/heif"), ["imagen"])).toEqual({ ok: true, valor: "imagen" })
+  })
+
+  it("video .mov (video/quicktime) se acepta como video", () => {
+    expect(validarArchivo(archivo("IMG_3.MOV", "video/quicktime"), ["imagen", "video"])).toEqual({ ok: true, valor: "video" })
+  })
+})
+
 describe("modelos 3D", () => {
   it("acepta STL y PLY por extensión (sin MIME fiable)", () => {
     expect(validarArchivo(archivo("arcada.STL", "model/stl"), ["modelo3d"])).toEqual({ ok: true, valor: "modelo3d" })

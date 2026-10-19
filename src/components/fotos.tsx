@@ -1,5 +1,5 @@
 import { useRef, useState, type ReactNode } from "react"
-import { Camera, ImageOff, RefreshCw, Trash2 } from "lucide-react"
+import { Camera, Download, ImageOff, RefreshCw, Trash2, VideoOff } from "lucide-react"
 import { cn } from "cn"
 
 import { Button } from "@/components/ui/button"
@@ -67,6 +67,42 @@ export function RecuadroFoto({
   )
 }
 
+/**
+ * Video con respaldo: los de iPhone suelen venir en HEVC, que Firefox y varios Chrome no decodifican.
+ * Si el navegador no puede, se avisa y se ofrece descargarlo en vez de dejar un reproductor en blanco.
+ */
+export function VideoReproducible({ url }: { url: string }) {
+  const [falla, setFalla] = useState(false)
+  if (falla) {
+    return (
+      <div className="flex size-full flex-col items-center justify-center gap-2 bg-muted p-3 text-center">
+        <VideoOff className="size-5 text-muted-foreground" />
+        <p className="text-[11px] leading-tight text-muted-foreground">
+          Este video no se puede reproducir en este navegador.
+        </p>
+        <a
+          href={`${url}${url.includes("?") ? "&" : "?"}download=`}
+          download
+          className="inline-flex items-center gap-1 rounded-lg border border-input bg-background px-2.5 py-1.5 text-xs font-medium text-brand-dark hover:bg-muted"
+        >
+          <Download className="size-3.5" />
+          Descargar
+        </a>
+      </div>
+    )
+  }
+  return (
+    <video
+      src={url}
+      controls
+      preload="metadata"
+      playsInline
+      onError={() => setFalla(true)}
+      className="size-full object-cover"
+    />
+  )
+}
+
 /** Foto o video de un archivo clínico real: muestra el contenido y permite subir o reemplazar. */
 export function ContenidoArchivo({ archivo, etiqueta }: { archivo: ArchivoClinico; etiqueta: string }) {
   if (!archivo.url) {
@@ -77,7 +113,7 @@ export function ContenidoArchivo({ archivo, etiqueta }: { archivo: ArchivoClinic
     )
   }
   return archivo.tipo === "video" ? (
-    <video src={archivo.url} controls preload="metadata" playsInline className="size-full object-cover" />
+    <VideoReproducible url={archivo.url} />
   ) : (
     <img src={archivo.url} alt={etiqueta} loading="lazy" className="size-full object-cover" />
   )
@@ -204,6 +240,7 @@ export function RecuadroSlot({
   archivo,
   etiqueta,
   subiendo,
+  convirtiendo,
   accept,
   onArchivo,
   onBorrar,
@@ -211,6 +248,7 @@ export function RecuadroSlot({
   archivo: ArchivoClinico | null
   etiqueta: string
   subiendo: boolean
+  convirtiendo?: boolean
   accept: string
   onArchivo: (file: File) => void
   onBorrar: (archivo: ArchivoClinico) => Promise<unknown>
@@ -257,7 +295,7 @@ export function RecuadroSlot({
         )}
         {subiendo ? (
           <div className="absolute inset-0 flex items-center justify-center bg-white/70 text-xs font-medium text-brand-dark">
-            Subiendo…
+            {convirtiendo ? "Convirtiendo…" : "Subiendo…"}
           </div>
         ) : null}
       </div>

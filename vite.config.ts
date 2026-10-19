@@ -7,9 +7,13 @@ import { defineConfig } from 'vitest/config'
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   resolve: {
-    alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)),
-    },
+    alias: [
+      // Solo para probar el layout sin tocar Supabase: VITE_MOCK=true npm run dev
+      ...(process.env.VITE_MOCK === 'true'
+        ? [{ find: '@/lib/supabase', replacement: fileURLToPath(new URL('./dev-mock/supabase-mock.ts', import.meta.url)) }]
+        : []),
+      { find: '@', replacement: fileURLToPath(new URL('./src', import.meta.url)) },
+    ],
   },
   test: {
     include: ['src/**/*.test.ts'],

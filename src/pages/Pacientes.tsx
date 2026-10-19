@@ -199,7 +199,7 @@ export function Pacientes() {
               <TableHead className="pl-5">Paciente</TableHead>
               <TableHead>DNI</TableHead>
               <TableHead>Categoría</TableHead>
-              <TableHead>Sede</TableHead>
+              <TableHead className="hidden lg:table-cell">Sede</TableHead>
               <TableHead>Estado</TableHead>
               <TableHead className="w-10" />
             </TableRow>
@@ -220,7 +220,13 @@ export function Pacientes() {
                       <p className="font-medium text-brand-dark">
                         {p.apellido}, {p.nombre}
                       </p>
-                      {p.edad ? <p className="text-xs text-muted-foreground">{p.edad} años</p> : null}
+                      <p className="text-xs text-muted-foreground">
+                        {p.edad ? `${p.edad} años` : null}
+                        <span className="lg:hidden">
+                          {p.edad ? " · " : null}
+                          {p.sede}
+                        </span>
+                      </p>
                     </div>
                   </div>
                 </TableCell>
@@ -228,7 +234,7 @@ export function Pacientes() {
                 <TableCell>
                   <CategoriaBadge categoria={p.categoria} />
                 </TableCell>
-                <TableCell className="text-muted-foreground">{p.sede}</TableCell>
+                <TableCell className="hidden text-muted-foreground lg:table-cell">{p.sede}</TableCell>
                 <TableCell>
                   <EstadoBadge activo={p.activo} />
                 </TableCell>

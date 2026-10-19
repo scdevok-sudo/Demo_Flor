@@ -9,6 +9,7 @@ import {
   type Origen,
   type TipoArchivo,
 } from "@/data/archivos"
+import { esHeic, heicAJpeg } from "@/lib/heic"
 import { hoyISO } from "@/lib/util"
 
 interface Extra {
@@ -27,6 +28,8 @@ export function useArchivos(pacienteId: string) {
   const [error, setError] = useState<string | null>(null)
   /** Claves (slot o id de archivo) con una subida en curso. */
   const [subiendo, setSubiendo] = useState<string[]>([])
+  /** Subset de `subiendo` que todavía está convirtiendo un HEIC a JPEG. */
+  const [convirtiendo, setConvirtiendo] = useState<string[]>([])
 
   const cargar = useCallback(() => {
     void datos.listar(pacienteId).then((r) => {
@@ -45,6 +48,23 @@ export function useArchivos(pacienteId: string) {
   const marcar = (clave: string, activo: boolean) =>
     setSubiendo((s) => (activo ? [...s, clave] : s.filter((c) => c !== clave)))
 
+  /**
+   * Los HEIC de iPhone no se ven en un <img>: se pasan a JPEG antes de subir, así en Storage
+   * nunca queda HEIC. Devuelve el archivo a subir, o `null` si la conversión falló (ya avisó).
+   */
+  async function prepararImagen(clave: string, file: File): Promise<File | null> {
+    if (!esHeic(file)) return file
+    setConvirtiendo((c) => [...c, clave])
+    try {
+      return await heicAJpeg(file)
+    } catch {
+      setError("No se pudo convertir la foto del iPhone (HEIC) a JPEG. Probá de nuevo o sacala en formato «Más compatible».")
+      return null
+    } finally {
+      setConvirtiendo((c) => c.filter((k) => k !== clave))
+    }
+  }
+
   /** Sube un archivo nuevo. `clave` identifica el control que dispara la subida. */
   async function subir(
     clave: string,
@@ -60,13 +80,17 @@ export function useArchivos(pacienteId: string) {
       return setError(`Se alcanzó el máximo de ${TOPES[origen]} archivos en esta sección.`)
     }
     marcar(clave, true)
+    const listo = await prepararImagen(clave, file)
+    if (!listo) return marcar(clave, false)
     const r = await datos.subir({
       pacienteId,
       origen,
       tipo: valido.valor,
-      file,
+      file: listo,
       fecha: hoyISO(),
       ...extra,
+      // Estudios rotula con el nombre del archivo: que no quede «.HEIC» si se subió un JPEG.
+      ...(extra.etiqueta === file.name ? { etiqueta: listo.name } : {}),
     })
     marcar(clave, false)
     if (!r.ok) return setError(r.error)
@@ -78,7 +102,9 @@ export function useArchivos(pacienteId: string) {
     const valido = validarArchivo(file, permitidos)
     if (!valido.ok) return setError(valido.error)
     marcar(archivo.id, true)
-    const r = await datos.reemplazar(archivo, pacienteId, file, valido.valor)
+    const listo = await prepararImagen(archivo.id, file)
+    if (!listo) return marcar(archivo.id, false)
+    const r = await datos.reemplazar(archivo, pacienteId, listo, valido.valor)
     marcar(archivo.id, false)
     if (!r.ok) return setError(r.error)
     setArchivos((a) => a.map((x) => (x.id === archivo.id ? r.valor : x)))
@@ -116,6 +142,7 @@ export function useArchivos(pacienteId: string) {
     error,
     recargar: cargar,
     subiendo,
+    convirtiendo,
     subir,
     reemplazar,
     borrar,
