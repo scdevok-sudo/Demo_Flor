@@ -1,7 +1,7 @@
 /**
  * Qué visor corresponde a cada archivo, resuelto por extensión.
- * Para sumar DICOM después: agregar "dicom" acá, sus extensiones en `POR_EXTENSION`
- * y un caso en `VisorArchivo`; el resto del módulo no cambia.
+ * Solo cubre los archivos que se distinguen por extensión (mallas STL/PLY). Los estudios DICOM
+ * van en ZIP, que es genérico: se reconocen por el tipo `estudio_dicom` (ver `VisorDicom`).
  */
 export type Visor = "malla3d"
 

@@ -4,7 +4,7 @@ import { extensionDe } from "@/lib/visores"
 import { SLOTS_BOCA, SLOTS_CARA } from "@/lib/tipos"
 
 export type Origen = "foto_inicial" | "foto_final" | "intra_tratamiento" | "radiografia" | "estudio"
-export type TipoArchivo = "imagen" | "video" | "pdf" | "modelo3d"
+export type TipoArchivo = "imagen" | "video" | "pdf" | "modelo3d" | "estudio_dicom"
 export type Etapa = "inicial" | "intermedio" | "final"
 
 export interface ArchivoClinico {
@@ -32,16 +32,18 @@ export const TOPES: Record<Origen, number> = {
 }
 
 const MB = 1024 * 1024
-const MAX_BYTES: Record<TipoArchivo, number> = { imagen: 25 * MB, video: 100 * MB, pdf: 25 * MB, modelo3d: 50 * MB }
+// El tope de `estudio_dicom` es del ZIP que elige el usuario; lo que se sube es solo la parte DICOM.
+const MAX_BYTES: Record<TipoArchivo, number> = { imagen: 25 * MB, video: 100 * MB, pdf: 25 * MB, modelo3d: 50 * MB, estudio_dicom: 400 * MB }
 
 const POR_EXTENSION: Record<string, TipoArchivo> = {
   jpg: "imagen", jpeg: "imagen", png: "imagen", webp: "imagen", heic: "imagen", heif: "imagen",
   mp4: "video", mov: "video", webm: "video", m4v: "video",
   pdf: "pdf",
   stl: "modelo3d", ply: "modelo3d",
+  zip: "estudio_dicom",
 }
 
-const NOMBRE_TIPO: Record<TipoArchivo, string> = { imagen: "imágenes", video: "videos", pdf: "PDF", modelo3d: "modelos 3D (STL o PLY)" }
+const NOMBRE_TIPO: Record<TipoArchivo, string> = { imagen: "imágenes", video: "videos", pdf: "PDF", modelo3d: "modelos 3D (STL o PLY)", estudio_dicom: "estudios DICOM (ZIP)" }
 
 function bucketDe(origen: Origen): string {
   return origen === "radiografia" || origen === "estudio" ? BUCKETS.estudios : BUCKETS.fotos
@@ -65,6 +67,29 @@ export function validarArchivo(file: File, permitidos: TipoArchivo[]): Resultado
     return { ok: false, error: `El archivo pesa más de ${MAX_BYTES[tipo] / MB} MB.` }
   }
   return { ok: true, valor: tipo }
+}
+
+const dmy = (iso: string) => iso.split("-").reverse().join("/")
+
+/**
+ * Nombre de visualización de los archivos de Estudios. Los STL/PLY y los ZIP DICOM llegan con
+ * nombres de exportación del equipo (p. ej. «EGES_109000065360_vuemotion_….zip») que no le dicen
+ * nada a quien los mira; imágenes y PDF conservan el nombre que les puso quien los subió.
+ * `iso` es AAAA-MM-DD.
+ */
+export function etiquetaDeSubida(tipo: TipoArchivo, nombreOriginal: string, iso: string): string {
+  if (tipo === "estudio_dicom") return `Estudio DICOM — ${dmy(iso)}`
+  if (tipo === "modelo3d") return `Modelo 3D — ${dmy(iso)}`
+  return nombreOriginal
+}
+
+/** Lo que se muestra como nombre: cubre también los registros viejos, que guardaron el nombre crudo. */
+export function nombreVisible(a: Pick<ArchivoClinico, "tipo" | "etiqueta" | "fecha">): string {
+  if (a.tipo === "estudio_dicom" || a.tipo === "modelo3d") {
+    const crudo = !a.etiqueta || /\.(zip|stl|ply)$/i.test(a.etiqueta)
+    return crudo ? etiquetaDeSubida(a.tipo, "", a.fecha) : a.etiqueta!
+  }
+  return a.etiqueta || (a.tipo === "pdf" ? "Estudio.pdf" : "Imagen")
 }
 
 /** Etiqueta guardada para un slot: «perfil-izquierdo» -> «perfil_izquierdo». */

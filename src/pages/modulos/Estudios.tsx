@@ -1,28 +1,28 @@
 import { lazy, Suspense, useState } from "react"
-import { Box, ExternalLink, FileText, Plus, RefreshCw } from "lucide-react"
+import { Box, ExternalLink, FileText, Layers, Plus, RefreshCw, X } from "lucide-react"
 
 import { SelectSimple, TituloBloque } from "@/components/campos"
 import { BotonBorrar, SelectorArchivo } from "@/components/fotos"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { TOPES, type ArchivoClinico, type TipoArchivo, type Etapa, type Origen } from "@/data/archivos"
+import { Dialog, DialogClose, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { TOPES, nombreVisible, type ArchivoClinico, type TipoArchivo, type Etapa, type Origen } from "@/data/archivos"
 import { useArchivos, type Archivos } from "@/data/useArchivos"
 import type { Paciente } from "@/lib/tipos"
 import { fechaCorta } from "@/lib/util"
 import { extensionDe, visorDe } from "@/lib/visores"
 
 const Visor3D = lazy(() => import("@/components/Visor3D").then((m) => ({ default: m.Visor3D })))
+const VisorDicom = lazy(() => import("@/components/VisorDicom").then((m) => ({ default: m.VisorDicom })))
 
-const TIPOS: TipoArchivo[] = ["imagen", "pdf", "modelo3d"]
+const TIPOS: TipoArchivo[] = ["imagen", "pdf", "modelo3d", "estudio_dicom"]
 
 interface Props {
   paciente: Paciente
 }
 
-// Estudios 3D: se asume escaneo intraoral en STL/PLY (formato de Imago SIN confirmar).
-// Si resulta ser DICOM (tomografía) hace falta un visor aparte: ver src/lib/visores.ts.
-const ACEPTA = "image/*,application/pdf,.stl,.ply"
+// Escaneo intraoral en STL/PLY (visor de malla 3D) y estudios DICOM en ZIP (visor de cortes 2D).
+const ACEPTA = "image/*,application/pdf,.stl,.ply,.zip"
 
 const ETAPAS: { valor: Etapa; etiqueta: string }[] = [
   { valor: "inicial", etiqueta: "Inicial" },
@@ -67,7 +67,7 @@ function Bloque({
               className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium hover:bg-muted disabled:pointer-events-none disabled:opacity-50"
             >
               <Plus className="size-3.5" />
-              {convirtiendoNuevo ? "Convirtiendo…" : subiendoNuevo ? "Subiendo…" : "Agregar"}
+              {convirtiendoNuevo ? "Procesando…" : subiendoNuevo ? "Subiendo…" : "Agregar"}
             </SelectorArchivo>
           }
         />
@@ -93,9 +93,10 @@ function Bloque({
 }
 
 function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Archivos }) {
-  const nombre = a.etiqueta || (a.tipo === "pdf" ? "Estudio.pdf" : "Imagen")
+  const nombre = nombreVisible(a)
   const subiendo = archivos.subiendo.includes(a.id)
   const [viendo, setViendo] = useState(false)
+  const [viendoCortes, setViendoCortes] = useState(false)
   const visor = a.url ? visorDe(a.storagePath) : null
 
   return (
@@ -104,14 +105,20 @@ function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Arc
         {a.tipo === "imagen" && a.url ? (
           <img src={a.url} alt={nombre} loading="lazy" className="size-full object-cover" />
         ) : (
-          a.tipo === "modelo3d" ? <Box className="size-5" /> : <FileText className="size-5" />
+          a.tipo === "modelo3d" ? (
+            <Box className="size-5" />
+          ) : a.tipo === "estudio_dicom" ? (
+            <Layers className="size-5" />
+          ) : (
+            <FileText className="size-5" />
+          )
         )}
       </div>
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-medium text-brand-dark">{nombre}</p>
         <p className="text-xs text-muted-foreground">
-          <span className="uppercase">{a.tipo === "modelo3d" ? "3D" : a.tipo}</span> · {fechaCorta(a.fecha)}
+          <span className="uppercase">{a.tipo === "modelo3d" ? "3D" : a.tipo === "estudio_dicom" ? "DICOM" : a.tipo}</span> · {fechaCorta(a.fecha)}
         </p>
       </div>
 
@@ -137,6 +144,36 @@ function Fila({ archivo: a, archivos }: { archivo: ArchivoClinico; archivos: Arc
                 <Suspense fallback={<p className="py-10 text-center text-sm">Cargando visor…</p>}>
                   <Visor3D url={a.url} extension={extensionDe(a.storagePath)} />
                 </Suspense>
+              ) : null}
+            </DialogContent>
+          </Dialog>
+        </>
+      ) : null}
+
+      {a.tipo === "estudio_dicom" && a.url ? (
+        <>
+          <Button type="button" variant="outline" size="sm" onClick={() => setViendoCortes(true)}>
+            <Layers className="size-3.5" />
+            Ver cortes
+          </Button>
+          <Dialog open={viendoCortes} onOpenChange={setViendoCortes}>
+            <DialogContent
+              showCloseButton={false}
+              className="top-0 left-0 flex h-dvh max-h-dvh w-screen max-w-none translate-x-0 translate-y-0 flex-col gap-2 rounded-none p-3 pt-[max(0.75rem,env(safe-area-inset-top))] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:max-w-none sm:gap-3 sm:p-4"
+            >
+              <DialogHeader className="flex-row items-center justify-between gap-2">
+                <DialogTitle className="min-w-0 flex-1 truncate">{nombre}</DialogTitle>
+                <DialogClose render={<Button variant="ghost" size="icon" className="size-11 shrink-0" />}>
+                  <X className="size-5" />
+                  <span className="sr-only">Cerrar</span>
+                </DialogClose>
+              </DialogHeader>
+              {viendoCortes ? (
+                <div className="min-h-0 flex-1">
+                  <Suspense fallback={<p className="py-10 text-center text-sm">Cargando visor…</p>}>
+                    <VisorDicom url={a.url} />
+                  </Suspense>
+                </div>
               ) : null}
             </DialogContent>
           </Dialog>
@@ -198,13 +235,13 @@ export function Estudios({ paciente }: Props) {
       ) : null}
       <Bloque
         titulo="Radiografías"
-        descripcion="Panorámicas, teleperfiles y periapicales. Imagen, PDF o modelo 3D (STL/PLY)."
+        descripcion="Panorámicas, teleperfiles y periapicales. Imagen, PDF, modelo 3D (STL/PLY) o estudio DICOM (ZIP)."
         origen="radiografia"
         archivos={archivos}
       />
       <Bloque
         titulo="Estudios complementarios"
-        descripcion="Cefalometrías, periodontogramas, interconsultas. Imagen, PDF o modelo 3D (STL/PLY)."
+        descripcion="Cefalometrías, periodontogramas, interconsultas. Imagen, PDF, modelo 3D (STL/PLY) o estudio DICOM (ZIP)."
         origen="estudio"
         archivos={archivos}
       />

@@ -98,7 +98,7 @@ export function VideoReproducible({ url }: { url: string }) {
       preload="metadata"
       playsInline
       onError={() => setFalla(true)}
-      className="size-full object-cover"
+      className="size-full bg-black object-contain"
     />
   )
 }

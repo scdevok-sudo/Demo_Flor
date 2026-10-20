@@ -3,12 +3,14 @@ import { useCallback, useEffect, useState } from "react"
 import * as datos from "@/data/archivos"
 import {
   TOPES,
+  etiquetaDeSubida,
   validarArchivo,
   type ArchivoClinico,
   type Etapa,
   type Origen,
   type TipoArchivo,
 } from "@/data/archivos"
+import { filtrarZipDicom, SinDicomError } from "@/lib/dicomZip"
 import { esHeic, heicAJpeg } from "@/lib/heic"
 import { hoyISO } from "@/lib/util"
 
@@ -28,7 +30,7 @@ export function useArchivos(pacienteId: string) {
   const [error, setError] = useState<string | null>(null)
   /** Claves (slot o id de archivo) con una subida en curso. */
   const [subiendo, setSubiendo] = useState<string[]>([])
-  /** Subset de `subiendo` que todavía está convirtiendo un HEIC a JPEG. */
+  /** Subset de `subiendo` que todavía está procesando el archivo (HEIC a JPEG, filtrado de ZIP DICOM). */
   const [convirtiendo, setConvirtiendo] = useState<string[]>([])
 
   const cargar = useCallback(() => {
@@ -49,16 +51,25 @@ export function useArchivos(pacienteId: string) {
     setSubiendo((s) => (activo ? [...s, clave] : s.filter((c) => c !== clave)))
 
   /**
-   * Los HEIC de iPhone no se ven en un <img>: se pasan a JPEG antes de subir, así en Storage
-   * nunca queda HEIC. Devuelve el archivo a subir, o `null` si la conversión falló (ya avisó).
+   * Deja el archivo listo para subir. Los HEIC de iPhone no se ven en un <img>: se pasan a JPEG, así en
+   * Storage nunca queda HEIC. Los ZIP de estudios DICOM se filtran en el navegador (el export del PACS
+   * trae un visor de Windows de ~225 MB que no hace falta). Devuelve `null` si falló (ya avisó).
    */
-  async function prepararImagen(clave: string, file: File): Promise<File | null> {
-    if (!esHeic(file)) return file
+  async function prepararArchivo(clave: string, file: File, tipo: TipoArchivo): Promise<File | null> {
+    const dicom = tipo === "estudio_dicom"
+    if (!dicom && !esHeic(file)) return file
     setConvirtiendo((c) => [...c, clave])
     try {
+      if (dicom) return await filtrarZipDicom(file)
       return await heicAJpeg(file)
-    } catch {
-      setError("No se pudo convertir la foto del iPhone (HEIC) a JPEG. Probá de nuevo o sacala en formato «Más compatible».")
+    } catch (e) {
+      setError(
+        dicom
+          ? e instanceof SinDicomError
+            ? e.message
+            : "No se pudo leer el ZIP del estudio. Probá exportarlo de nuevo."
+          : "No se pudo convertir la foto del iPhone (HEIC) a JPEG. Probá de nuevo o sacala en formato «Más compatible»."
+      )
       return null
     } finally {
       setConvirtiendo((c) => c.filter((k) => k !== clave))
@@ -80,17 +91,19 @@ export function useArchivos(pacienteId: string) {
       return setError(`Se alcanzó el máximo de ${TOPES[origen]} archivos en esta sección.`)
     }
     marcar(clave, true)
-    const listo = await prepararImagen(clave, file)
+    const listo = await prepararArchivo(clave, file, valido.valor)
     if (!listo) return marcar(clave, false)
+    const fecha = hoyISO()
     const r = await datos.subir({
       pacienteId,
       origen,
       tipo: valido.valor,
       file: listo,
-      fecha: hoyISO(),
+      fecha,
       ...extra,
-      // Estudios rotula con el nombre del archivo: que no quede «.HEIC» si se subió un JPEG.
-      ...(extra.etiqueta === file.name ? { etiqueta: listo.name } : {}),
+      // Estudios rotula con el nombre del archivo: que no quede «.HEIC» si se subió un JPEG,
+      // ni el nombre crudo de exportación de un ZIP DICOM o un STL.
+      ...(extra.etiqueta === file.name ? { etiqueta: etiquetaDeSubida(valido.valor, listo.name, fecha) } : {}),
     })
     marcar(clave, false)
     if (!r.ok) return setError(r.error)
@@ -102,7 +115,7 @@ export function useArchivos(pacienteId: string) {
     const valido = validarArchivo(file, permitidos)
     if (!valido.ok) return setError(valido.error)
     marcar(archivo.id, true)
-    const listo = await prepararImagen(archivo.id, file)
+    const listo = await prepararArchivo(archivo.id, file, valido.valor)
     if (!listo) return marcar(archivo.id, false)
     const r = await datos.reemplazar(archivo, pacienteId, listo, valido.valor)
     marcar(archivo.id, false)

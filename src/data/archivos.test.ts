@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest"
 // archivos.ts importa el cliente de Supabase, que exige variables de entorno.
 vi.mock("@/lib/supabase", () => ({ supabase: {} }))
 
-import { TOPES, validarArchivo, zonaDeSlot, etiquetaDeSlot, slotDeEtiqueta } from "@/data/archivos"
+import { TOPES, etiquetaDeSubida, nombreVisible, validarArchivo, zonaDeSlot, etiquetaDeSlot, slotDeEtiqueta } from "@/data/archivos"
 
 const MB = 1024 * 1024
 
@@ -102,6 +102,23 @@ describe("modelos 3D", () => {
   })
 })
 
+describe("estudios DICOM", () => {
+  it("clasifica el ZIP como estudio_dicom aunque el MIME varíe", () => {
+    for (const mime of ["application/zip", "application/x-zip-compressed", ""]) {
+      expect(validarArchivo(archivo("EGES_vuemotion.zip", mime), ["imagen", "estudio_dicom"])).toEqual({
+        ok: true,
+        valor: "estudio_dicom",
+      })
+    }
+  })
+
+  it("rechaza el ZIP donde no se permite y respeta el tope de 400 MB", () => {
+    expect(validarArchivo(archivo("a.zip", "application/zip"), ["imagen", "pdf"]).ok).toBe(false)
+    expect(validarArchivo(archivo("a.zip", "", 400 * MB), ["estudio_dicom"]).ok).toBe(true)
+    expect(validarArchivo(archivo("a.zip", "", 400 * MB + 1), ["estudio_dicom"]).ok).toBe(false)
+  })
+})
+
 describe("slots", () => {
   it("zonaDeSlot distingue cara de boca", () => {
     expect(zonaDeSlot("perfil-izquierdo")).toBe("cara")
@@ -113,5 +130,20 @@ describe("slots", () => {
     expect(etiquetaDeSlot("perfil-izquierdo")).toBe("perfil_izquierdo")
     expect(slotDeEtiqueta("perfil_izquierdo")).toBe("perfil-izquierdo")
     expect(slotDeEtiqueta(null)).toBe("")
+  })
+})
+
+describe("nombre de visualización", () => {
+  it("ZIP DICOM y STL/PLY no muestran el nombre de exportación", () => {
+    expect(etiquetaDeSubida("estudio_dicom", "EGES_109_vuemotion_x.zip", "2026-10-19")).toBe("Estudio DICOM — 19/10/2026")
+    expect(etiquetaDeSubida("modelo3d", "scan_0042.stl", "2026-10-19")).toBe("Modelo 3D — 19/10/2026")
+  })
+  it("imagen y PDF conservan el nombre", () => {
+    expect(etiquetaDeSubida("pdf", "panoramica.pdf", "2026-10-19")).toBe("panoramica.pdf")
+  })
+  it("registros viejos con el nombre crudo se muestran con el nombre nuevo", () => {
+    expect(nombreVisible({ tipo: "estudio_dicom", etiqueta: "EGES_1.zip", fecha: "2026-03-14" })).toBe("Estudio DICOM — 14/03/2026")
+    expect(nombreVisible({ tipo: "estudio_dicom", etiqueta: "Estudio DICOM — 14/03/2026", fecha: "2026-03-14" })).toBe("Estudio DICOM — 14/03/2026")
+    expect(nombreVisible({ tipo: "pdf", etiqueta: null, fecha: "" })).toBe("Estudio.pdf")
   })
 })
